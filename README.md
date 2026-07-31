@@ -870,11 +870,76 @@ origin	https://github.com/ellysuh22/1-homework.git (fetch)
 origin	https://github.com/ellysuh22/1-homework.git (push)
 ```
 
-<!-- PUSH_LOG_PLACEHOLDER -->
+저장소 소유자 계정으로 인증한 뒤 쓰기 권한을 확인했습니다.
 
-### 14-4. VSCode GitHub 연동
+```bash
+$ gh auth status
+github.com
+  ✓ Logged in to github.com account ellysuh22 (keyring)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: gho_************************************      # gh 가 자동 마스킹
 
-<!-- VSCODE_EVIDENCE_PLACEHOLDER -->
+$ gh api repos/ellysuh22/1-homework --jq '.permissions'
+{"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}
+```
+
+### 14-4. 커밋 및 업로드
+
+작업 단위를 나누어 5개 커밋으로 정리했습니다.
+
+```bash
+$ git log --oneline
+bbfbb8f docs: 기술 문서(README) 작성
+b5a3f2b docs: 브라우저 접속 증거 스크린샷 (주소창 포함)
+ccd5f54 docs: 터미널/권한/Docker/컨테이너/이미지/포트/마운트/볼륨 실습 로그
+af71e03 feat: 실습 수행 및 로그 수집 스크립트
+fad1256 chore: 커스텀 nginx 이미지 골격 구성
+
+$ git push -u origin main
+To https://github.com/ellysuh22/1-homework.git
+ * [new branch]      main -> main
+branch 'main' set up to track 'origin/main'.
+```
+
+업로드 결과를 원격에서 직접 조회해 확인했습니다.
+
+```bash
+$ gh repo view ellysuh22/1-homework --json url,visibility,defaultBranchRef
+URL: https://github.com/ellysuh22/1-homework
+공개여부: PUBLIC
+기본브랜치: main
+
+$ gh api "repos/ellysuh22/1-homework/git/trees/main?recursive=1" --jq '[.tree[] | select(.type=="blob")] | length'
+33                                                  # 33개 파일 업로드 완료
+```
+
+> 첫 push 는 GitHub 의 이메일 프라이버시 정책에 막혀 실패했습니다. 원인과 해결 과정은 [16-4절](#16-4-이슈-4--이메일-프라이버시-정책으로-push-거부gh007)에 정리했습니다.
+
+### 14-5. VSCode GitHub 연동
+
+VSCode에서 GitHub 계정으로 로그인하고, 이 저장소를 소스 제어(Source Control)에 연결했습니다.
+
+![VSCode GitHub 연동](evidence/vscode-github-account.png)
+
+위 스크린샷에서 확인할 수 있는 것:
+
+| 항목 | 화면상 근거 |
+|---|---|
+| GitHub 로그인 완료 | 좌측 하단 계정 메뉴에 **`ellysuh22 (GitHub)`** 표시 |
+| 저장소 연동 완료 | 탐색기에 `1-HO...`(1-homework) 프로젝트가 열려 있음 |
+| Git 변경사항 인식 | 소스 제어 아이콘에 변경 파일 수 배지(**2**), `README.md` 옆 `M`(Modified) 표시 |
+
+로컬 브랜치가 원격을 정상 추적하고 있는지는 CLI 로도 교차 확인했습니다.
+
+```bash
+$ git branch -vv
+* main bbfbb8f [origin/main] docs: 기술 문서(README) 작성
+
+$ git remote -v
+origin	https://github.com/ellysuh22/1-homework.git (fetch)
+origin	https://github.com/ellysuh22/1-homework.git (push)
+```
 
 ---
 
@@ -1065,7 +1130,44 @@ APP_PORT=80                                          # ← 컨테이너 안에�
   또한 실패한 컨테이너는 `Created` 상태로 남아있으므로 `docker rm -f`로 정리해야 합니다.
 - **배운 점**: 충돌하는 것은 **호스트 포트**이지 컨테이너 포트가 아닙니다. 이것이 포트 매핑을 `호스트:컨테이너` 두 값으로 나눠 쓰는 이유입니다.
 
-### 16-4. 이슈 4 — 스크린샷이 빈 화면으로 캡처됨
+### 16-4. 이슈 4 — 이메일 프라이버시 정책으로 push 거부(GH007)
+
+- **문제**: 계정 권한 문제를 해결한 뒤 첫 push 를 시도했는데 또 거부됐습니다.
+
+  ```bash
+  $ git push -u origin main
+  remote: error: GH007: Your push would publish a private email address.
+  remote: You can make your email public or disable this protection by visiting:
+  remote: https://github.com/settings/emails
+   ! [remote rejected] main -> main (push declined due to email privacy restrictions)
+  [exit code: 1]
+  ```
+
+- **원인 가설**: 이번엔 권한(403) 문제가 아니라 GitHub 계정의 **이메일 비공개 설정** 때문으로 보였습니다. 커밋 작성자 이메일이 실제 주소(`youngsuh0630@gmail.com`)로 되어 있는데, 계정에 "이메일을 노출하는 커맨드라인 push 차단" 옵션이 켜져 있어 GitHub 이 대신 막아준 것으로 추정했습니다.
+- **확인**: 커밋에 기록된 작성자 이메일을 조회해 실제 주소가 들어가 있음을 확인했습니다.
+
+  ```bash
+  $ git log -1 --format='%an <%ae>'
+  ellysuh22 <youngsuh0630@gmail.com>
+  ```
+
+  에러 메시지가 안내한 https://github.com/settings/emails 에서 `Block command line pushes that expose my email` 이 체크되어 있는 것도 확인했습니다.
+- **해결**: 두 가지 선택지가 있었습니다.
+  1. **GitHub 제공 noreply 이메일 사용** — `309754256+ellysuh22@users.noreply.github.com` 으로 커밋 이메일을 바꾸고 히스토리를 재작성. 실제 이메일이 공개되지 않으면서 GitHub 잔디·작성자 연결은 그대로 유지됩니다.
+  2. **차단 옵션 해제** — 설정에서 체크를 풀고 실제 이메일을 그대로 사용.
+
+  이번에는 2번을 선택해 설정을 해제하고 push 에 성공했습니다.
+
+  ```bash
+  $ git push -u origin main
+  To https://github.com/ellysuh22/1-homework.git
+   * [new branch]      main -> main
+  branch 'main' set up to track 'origin/main'.
+  ```
+
+- **배운 점**: GitHub 은 기본적으로 사용자의 이메일 노출을 막아줍니다. 공개 저장소에 실제 이메일을 남기고 싶지 않다면 처음부터 `git config --global user.email` 을 noreply 주소로 설정하는 것이 안전합니다. 커밋을 만든 뒤에 바꾸려면 히스토리 재작성이 필요하므로 **시작 전에 정하는 것이 좋습니다.**
+
+### 16-5. 이슈 5 — 스크린샷이 빈 화면으로 캡처됨
 
 - **문제**: 브라우저 접속 증거를 남기려고 `screencapture` 명령을 실행했는데 파일이 생성되지 않고 아래 메시지만 나왔습니다.
 

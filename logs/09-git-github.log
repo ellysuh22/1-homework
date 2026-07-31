@@ -144,3 +144,144 @@ $ git commit -m 'feat: 실습 수행 및 로그 수집 스크립트
  create mode 100644 scripts/07-bind-mount.sh
  create mode 100644 scripts/08-volume.sh
  create mode 100755 scripts/runlog.sh
+
+$ git add logs
+
+
+$ git commit -m 'docs: 터미널/권한/Docker/컨테이너/이미지/포트/마운트/볼륨 실습 로그'
+[main ccd5f54] docs: 터미널/권한/Docker/컨테이너/이미지/포트/마운트/볼륨 실습 로그
+ 9 files changed, 1720 insertions(+)
+ create mode 100644 logs/01-terminal.log
+ create mode 100644 logs/02-permissions.log
+ create mode 100644 logs/03-docker-check.log
+ create mode 100644 logs/04-container-basics.log
+ create mode 100644 logs/05-image-build.log
+ create mode 100644 logs/06-port-mapping.log
+ create mode 100644 logs/07-bind-mount.log
+ create mode 100644 logs/08-volume.log
+ create mode 100644 logs/09-git-github.log
+
+$ git add evidence
+
+
+$ git commit -m 'docs: 브라우저 접속 증거 스크린샷 (주소창 포함)'
+[main b5a3f2b] docs: 브라우저 접속 증거 스크린샷 (주소창 포함)
+ 3 files changed, 0 insertions(+), 0 deletions(-)
+ create mode 100644 evidence/browser-8080-env.png
+ create mode 100644 evidence/browser-8080.png
+ create mode 100644 evidence/browser-8081.png
+
+$ git add README.md GUIDE.md CONCEPTS.md mission.txt
+
+
+$ git commit -m 'docs: 기술 문서(README) 작성
+
+실행 환경, 수행 체크리스트, 검증 방법, 단계별 수행 로그,
+개념 정리 6종, 트러블슈팅 4건, 재현 가이드를 포함한다.'
+[main bbfbb8f] docs: 기술 문서(README) 작성
+ 4 files changed, 2381 insertions(+)
+ create mode 100644 CONCEPTS.md
+ create mode 100644 GUIDE.md
+ create mode 100644 README.md
+ create mode 100644 mission.txt
+===============================================================
+ 09-git-github.log
+ 수집 시각: 2026-07-31 20:52:57 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### [7] GitHub 원격 저장소로 업로드 — git push
+
+$ git push -u origin main
+remote: error: GH007: Your push would publish a private email address.        
+remote: You can make your email public or disable this protection by visiting:        
+remote: https://github.com/settings/emails        
+To https://github.com/ellysuh22/1-homework.git
+ ! [remote rejected] main -> main (push declined due to email privacy restrictions)
+error: failed to push some refs to 'https://github.com/ellysuh22/1-homework.git'
+[exit code: 1]
+
+### [8] 업로드 결과 확인
+
+$ git log --oneline
+bbfbb8f docs: 기술 문서(README) 작성
+b5a3f2b docs: 브라우저 접속 증거 스크린샷 (주소창 포함)
+ccd5f54 docs: 터미널/권한/Docker/컨테이너/이미지/포트/마운트/볼륨 실습 로그
+af71e03 feat: 실습 수행 및 로그 수집 스크립트
+fad1256 chore: 커스텀 nginx 이미지 골격 구성
+
+$ git status
+On branch main
+Your branch is based on 'origin/main', but the upstream is gone.
+  (use "git branch --unset-upstream" to fixup)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   logs/09-git-github.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
+
+$ gh repo view ellysuh22/1-homework --json 'name,visibility,url,pushedAt'
+{"name":"1-homework","pushedAt":"2026-07-30T11:12:34Z","url":"https://github.com/ellysuh22/1-homework","visibility":"PUBLIC"}
+===============================================================
+ 09-git-github.log
+ 수집 시각: 2026-07-31 21:00:08 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### [9] push 재시도 — 이메일 프라이버시 차단 해제 후 성공
+
+$ git log -1 '--format=%an <%ae>'
+ellysuh22 <youngsuh0630@gmail.com>
+
+$ git push -u origin main
+Everything up-to-date
+branch 'main' set up to track 'origin/main'.
+
+$ git status
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   README.md
+	modified:   logs/09-git-github.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
+
+$ gh repo view ellysuh22/1-homework --json 'name,visibility,url'
+{"name":"1-homework","url":"https://github.com/ellysuh22/1-homework","visibility":"PUBLIC"}
+
+$ gh api "repos/ellysuh22/1-homework/git/trees/main?recursive=1" --jq "[.tree[] | select(.type==\"blob\")] | length"
+33
+===============================================================
+ 09-git-github.log
+ 수집 시각: 2026-07-31 21:00:28 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+###       ※ 위 'Everything up-to-date' 는 이 로그를 재수집한 시점에는 이미
+
+###         push 가 완료된 상태였기 때문이다. 최초 성공 시 출력은 다음과 같았다:
+
+###           To https://github.com/ellysuh22/1-homework.git
+
+###            * [new branch]      main -> main
+
+###           branch 'main' set up to track 'origin/main'.
+===============================================================
+ 09-git-github.log
+ 수집 시각: 2026-07-31 21:12:35 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### [10] VSCode 저장소 연동 상태 — 로컬 브랜치가 원격을 추적하는지 CLI 로 교차 확인
+
+$ git branch -vv
+* main bbfbb8f [origin/main] docs: 기술 문서(README) 작성
+
+$ git remote -v
+origin	https://github.com/ellysuh22/1-homework.git (fetch)
+origin	https://github.com/ellysuh22/1-homework.git (push)
