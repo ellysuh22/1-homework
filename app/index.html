@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>개발 워크스테이션 구축 — my-web</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <p class="badge">Docker Custom Image</p>
+    <h1>개발 워크스테이션 구축</h1>
+    <p class="lead">
+      이 페이지는 <strong>직접 작성한 Dockerfile</strong>로 빌드한
+      커스텀 nginx 이미지가 서빙하고 있습니다.
+    </p>
+
+    <dl class="meta">
+      <div>
+        <dt>이미지</dt>
+        <dd><code>my-web:1.0</code></dd>
+      </div>
+      <div>
+        <dt>베이스 이미지</dt>
+        <dd><code>nginx:1.29-alpine</code></dd>
+      </div>
+      <div>
+        <dt>콘텐츠 출처</dt>
+        <dd><span class="source-image">이미지 내장 (app/index.html)</span></dd>
+      </div>
+    </dl>
+
+    <p class="hint">
+      환경변수 확인용 엔드포인트 →
+      <a href="/env"><code>/env</code></a>
+    </p>
+
+    <footer>
+      <p>미션: 터미널 · Docker · Git/GitHub 개발 환경 구성</p>
+    </footer>
+  </main>
+</body>
+</html>
