@@ -1,0 +1,206 @@
+===============================================================
+ 03-docker-check.log
+ 수집 시각: 2026-07-31 20:32:46 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### [1] Docker 버전 확인 — 클라이언트가 설치되어 있는가
+
+$ docker --version
+Docker version 29.4.0, build 9d7ad9f
+
+### [2] Docker 데몬 동작 여부 확인 — docker info
+
+###       Server 섹션이 에러 없이 출력되면 데몬이 살아있다는 뜻이다.
+
+###       데몬이 죽어 있으면 'Cannot connect to the Docker daemon' 이 뜬다.
+
+$ docker info
+Client:
+ Version:    29.4.0
+ Context:    orbstack
+ Debug Mode: false
+ Plugins:
+  buildx: Docker Buildx (Docker Inc.)
+    Version:  v0.33.0
+    Path:     /Users/ellysuh/.docker/cli-plugins/docker-buildx
+  compose: Docker Compose (Docker Inc.)
+    Version:  v5.1.2
+    Path:     /Users/ellysuh/.docker/cli-plugins/docker-compose
+
+Server:
+ Containers: 0
+  Running: 0
+  Paused: 0
+  Stopped: 0
+ Images: 0
+ Server Version: 29.4.0
+ Storage Driver: overlayfs
+  driver-type: io.containerd.snapshotter.v1
+ Logging Driver: json-file
+ Cgroup Driver: cgroupfs
+ Cgroup Version: 2
+ Plugins:
+  Volume: local
+  Network: bridge host ipvlan macvlan null overlay
+  Log: awslogs fluentd gcplogs gelf journald json-file local splunk syslog
+ CDI spec directories:
+  /etc/cdi
+  /var/run/cdi
+ Swarm: inactive
+ Runtimes: runc io.containerd.runc.v2
+ Default Runtime: runc
+ Init Binary: docker-init
+ containerd version: 301b2dac98f15c27117da5c8af12118a041a31d9
+ runc version: c241c0bb5e60a8e8c1b2e53d4eca8d0068d8d57e
+ init version: de40ad0
+ Security Options:
+  seccomp
+   Profile: builtin
+  cgroupns
+ Kernel Version: 7.0.11-orbstack-00360-gc9bc4d96ac70
+ Operating System: OrbStack
+ OSType: linux
+ Architecture: aarch64
+ CPUs: 8
+ Total Memory: 11.74GiB
+ Name: orbstack
+ ID: a393ef85-471f-42f2-90a4-a38f14590bfd
+ Docker Root Dir: /var/lib/docker
+ Debug Mode: false
+ HTTP Proxy: http://proxy.orb.internal:8305
+ HTTPS Proxy: http://proxy.orb.internal:8305
+ No Proxy: localhost,127.0.0.1,127.0.0.0/8,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,0.250.250.0/24,*.orb.internal,*.local,gateway.docker.internal,host.internal,host.docker.internal,host.lima.internal,docker.for.mac.localhost,docker.for.mac.host.internal
+ Experimental: true
+ Insecure Registries:
+  ::1/128
+  127.0.0.0/8
+ Live Restore Enabled: false
+ Product License: Community Engine
+ Default Address Pools:
+   Base: 192.168.97.0/24, Size: 24
+   Base: 192.168.107.0/24, Size: 24
+   Base: 192.168.117.0/24, Size: 24
+   Base: 192.168.147.0/24, Size: 24
+   Base: 192.168.148.0/24, Size: 24
+   Base: 192.168.155.0/24, Size: 24
+   Base: 192.168.156.0/24, Size: 24
+   Base: 192.168.158.0/24, Size: 24
+   Base: 192.168.163.0/24, Size: 24
+   Base: 192.168.164.0/24, Size: 24
+   Base: 192.168.165.0/24, Size: 24
+   Base: 192.168.166.0/24, Size: 24
+   Base: 192.168.167.0/24, Size: 24
+   Base: 192.168.171.0/24, Size: 24
+   Base: 192.168.172.0/24, Size: 24
+   Base: 192.168.181.0/24, Size: 24
+   Base: 192.168.183.0/24, Size: 24
+   Base: 192.168.186.0/24, Size: 24
+   Base: 192.168.207.0/24, Size: 24
+   Base: 192.168.214.0/24, Size: 24
+   Base: 192.168.215.0/24, Size: 24
+   Base: 192.168.216.0/24, Size: 24
+   Base: 192.168.223.0/24, Size: 24
+   Base: 192.168.227.0/24, Size: 24
+   Base: 192.168.228.0/24, Size: 24
+   Base: 192.168.229.0/24, Size: 24
+   Base: 192.168.237.0/24, Size: 24
+   Base: 192.168.239.0/24, Size: 24
+   Base: 192.168.242.0/24, Size: 24
+   Base: 192.168.247.0/24, Size: 24
+   Base: fd07:b51a:cc66:d000::/56, Size: 64
+ Firewall Backend: iptables
+
+WARNING: DOCKER_INSECURE_NO_IPTABLES_RAW is set
+
+### [3] 컨테이너 런타임 확인 — 어떤 엔진으로 도커가 도는가
+
+###       서울캠퍼스 환경은 sudo 제한 때문에 Docker Desktop 대신 OrbStack 을 사용한다.
+
+###       아래 * 표시가 현재 활성 컨텍스트다.
+
+$ docker context ls
+NAME         DESCRIPTION                               DOCKER ENDPOINT                                   ERROR
+default      Current DOCKER_HOST based configuration   unix:///var/run/docker.sock                       
+orbstack *   OrbStack                                  unix:///Users/ellysuh/.orbstack/run/docker.sock   
+
+### [4] Docker Compose 플러그인 확인 (보너스 과제 대비)
+
+$ docker compose version
+Docker Compose version v5.1.2
+
+### [5] 이미지 다운로드 — docker pull
+
+###       docker run 을 하면 이미지가 자동으로 받아지지만,
+
+###       '다운로드' 과정을 증거로 남기기 위해 pull 을 따로 실행한다.
+
+### [5-1] hello-world — Docker 설치 확인용 최소 이미지
+
+$ docker pull hello-world
+Using default tag: latest
+latest: Pulling from library/hello-world
+58dee6a49ef1: Pulling fs layer
+58dee6a49ef1: Download complete
+58dee6a49ef1: Pull complete
+c3bdf82c34d1: Download complete
+Digest: sha256:c3cbe1cc1aa588a64951ac6286e0df7b27fe2e6324b1001c619bb358770c0178
+Status: Downloaded newer image for hello-world:latest
+docker.io/library/hello-world:latest
+
+### [5-2] ubuntu:24.04 — 리눅스 실습용 이미지
+
+$ docker pull ubuntu:24.04
+24.04: Pulling from library/ubuntu
+4b987da45db4: Pulling fs layer
+4b987da45db4: Download complete
+5ba1b3e1daa0: Download complete
+4b987da45db4: Pull complete
+Digest: sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
+Status: Downloaded newer image for ubuntu:24.04
+docker.io/library/ubuntu:24.04
+
+### [5-3] nginx:1.29-alpine — 커스텀 이미지의 베이스가 될 웹서버 이미지
+
+$ docker pull nginx:1.29-alpine
+1.29-alpine: Pulling from library/nginx
+662c8d6f6620: Pulling fs layer
+d17f077ada11: Pulling fs layer
+910c2a6cad6d: Pulling fs layer
+a89d14ef5abe: Pulling fs layer
+634f1d1ce0f7: Pulling fs layer
+a96b658a00fe: Pulling fs layer
+10cbc192f783: Pulling fs layer
+83fbf849ee89: Pulling fs layer
+10cbc192f783: Download complete
+634f1d1ce0f7: Download complete
+a96b658a00fe: Download complete
+83fbf849ee89: Download complete
+a89d14ef5abe: Download complete
+d17f077ada11: Download complete
+910c2a6cad6d: Download complete
+662c8d6f6620: Download complete
+10cbc192f783: Pull complete
+a96b658a00fe: Pull complete
+a89d14ef5abe: Pull complete
+d17f077ada11: Pull complete
+910c2a6cad6d: Pull complete
+6fe7ecffd0b2: Download complete
+634f1d1ce0f7: Pull complete
+83fbf849ee89: Pull complete
+59993c59bb89: Download complete
+662c8d6f6620: Pull complete
+Digest: sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+Status: Downloaded newer image for nginx:1.29-alpine
+docker.io/library/nginx:1.29-alpine
+
+### [6] 다운로드된 이미지 목록 확인 — docker images
+
+$ docker images
+WARNING: This output is designed for human readability. For machine-readable output, please use --format.
+IMAGE                ID             DISK USAGE   CONTENT SIZE   EXTRA
+hello-world:latest   c3cbe1cc1aa5       18.5kB         10.3kB        
+nginx:1.29-alpine    5616878291a2         94MB         26.7MB        
+ubuntu:24.04         4fbb8e6a8395        139MB         30.8MB        
+
+### [완료] Docker 점검 및 이미지 준비 종료

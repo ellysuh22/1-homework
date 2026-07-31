@@ -1,0 +1,146 @@
+===============================================================
+ 09-git-github.log
+ 수집 시각: 2026-07-31 20:46:03 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### [1] Git 버전 확인
+
+$ git --version
+git version 2.55.0
+
+### [2] Git 사용자 정보 및 기본 브랜치 설정
+
+###       --global 은 이 컴퓨터의 모든 저장소에 공통 적용한다는 뜻이다.
+
+$ git config --global user.name ellysuh22
+
+
+$ git config --global user.email youngsuh0630@gmail.com
+
+
+$ git config --global init.defaultBranch main
+
+
+### [3] 설정 결과 확인 — git config --list
+
+###       (인증 토큰 관련 항목은 값이 노출되지 않도록 helper 이름만 표시된다)
+
+$ git config --list
+credential.helper=osxkeychain
+credential.helper=osxkeychain
+credential.https://github.com.helper=
+credential.https://github.com.helper=!/opt/homebrew/bin/gh auth git-credential
+credential.https://gist.github.com.helper=
+credential.https://gist.github.com.helper=!/opt/homebrew/bin/gh auth git-credential
+user.name=ellysuh22
+user.email=youngsuh0630@gmail.com
+init.defaultbranch=main
+core.repositoryformatversion=0
+core.filemode=true
+core.bare=false
+core.logallrefupdates=true
+core.ignorecase=true
+core.precomposeunicode=true
+remote.origin.url=https://github.com/ellysuh22/1-homework.git
+remote.origin.fetch=+refs/heads/*:refs/remotes/origin/*
+branch.main.remote=origin
+branch.main.merge=refs/heads/main
+
+### [4] 현재 저장소 상태 확인
+
+$ git status
+On branch main
+
+No commits yet
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	.dockerignore
+	.gitignore
+	CONCEPTS.md
+	Dockerfile
+	GUIDE.md
+	app/
+	bindmount-demo/
+	evidence/
+	logs/
+	mission.txt
+	scripts/
+	templates/
+
+nothing added to commit but untracked files present (use "git add" to track)
+
+$ git branch --show-current
+main
+
+$ git remote -v
+origin	https://github.com/ellysuh22/1-homework.git (fetch)
+origin	https://github.com/ellysuh22/1-homework.git (push)
+===============================================================
+ 09-git-github.log
+ 수집 시각: 2026-07-31 20:52:47 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### [5] GitHub 계정 인증 — 저장소 소유자 계정으로 전환
+
+$ gh auth status
+github.com
+  ✓ Logged in to github.com account ellysuh22 (keyring)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: gho_************************************
+  - Token scopes: 'gist', 'read:org', 'repo'
+
+  ✓ Logged in to github.com account ellysuh22-22 (keyring)
+  - Active account: false
+  - Git operations protocol: https
+  - Token: gho_************************************
+  - Token scopes: 'gist', 'read:org', 'repo'
+
+###       저장소 쓰기 권한 확인 (push: true 여야 push 가능)
+
+$ gh api repos/ellysuh22/1-homework --jq .permissions
+{"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}
+
+### [6] 단계별 커밋
+
+$ git add Dockerfile .dockerignore .gitignore app templates bindmount-demo
+
+
+$ git commit -m 'chore: 커스텀 nginx 이미지 골격 구성
+
+- Dockerfile: nginx:1.29-alpine 베이스 + 커스텀 포인트 6종
+- app/: 웹 서버 정적 콘텐츠 (이미지에 COPY)
+- templates/: nginx 설정 템플릿 (envsubst 로 환경변수 치환)
+- bindmount-demo/: 바인드 마운트 실습용 폴더'
+[main (root-commit) fad1256] chore: 커스텀 nginx 이미지 골격 구성
+ 8 files changed, 364 insertions(+)
+ create mode 100644 .dockerignore
+ create mode 100644 .gitignore
+ create mode 100644 Dockerfile
+ create mode 100644 app/50x.html
+ create mode 100644 app/index.html
+ create mode 100644 app/style.css
+ create mode 100644 bindmount-demo/index.html
+ create mode 100644 templates/default.conf.template
+
+$ git add scripts
+
+
+$ git commit -m 'feat: 실습 수행 및 로그 수집 스크립트
+
+명령어 입력과 출력 결과를 함께 기록하는 runlog.sh 헬퍼와
+단계별 실습 스크립트(01~08)를 추가한다.'
+[main af71e03] feat: 실습 수행 및 로그 수집 스크립트
+ 9 files changed, 763 insertions(+)
+ create mode 100755 scripts/01-terminal.sh
+ create mode 100755 scripts/02-permissions.sh
+ create mode 100644 scripts/03-docker-check.sh
+ create mode 100644 scripts/04-container-basics.sh
+ create mode 100644 scripts/05-image-build.sh
+ create mode 100644 scripts/06-port-mapping.sh
+ create mode 100644 scripts/07-bind-mount.sh
+ create mode 100644 scripts/08-volume.sh
+ create mode 100755 scripts/runlog.sh

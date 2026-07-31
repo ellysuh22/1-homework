@@ -1,0 +1,165 @@
+===============================================================
+ 01-terminal.log
+ 수집 시각: 2026-07-31 20:35:18 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### [1] 현재 위치 확인 — pwd
+
+$ pwd
+/Users/ellysuh/Documents/1-homework
+
+### [2] 목록 확인 (숨김 파일 포함) — ls -la
+
+$ ls -la
+total 168
+drwxr-xr-x@ 16 ellysuh  staff    512 Jul 31 20:35 .
+drwx------@ 28 ellysuh  staff    896 Jul 31 15:35 ..
+drwxr-xr-x@  3 ellysuh  staff     96 Jul 31 20:35 .claude
+-rw-r--r--@  1 ellysuh  staff   1207 Jul 31 20:26 .dockerignore
+drwxr-xr-x@  9 ellysuh  staff    288 Jul 31 20:10 .git
+-rw-r--r--@  1 ellysuh  staff    528 Jul 31 20:26 .gitignore
+-rw-r--r--@  1 ellysuh  staff  39015 Jul 30 20:48 CONCEPTS.md
+-rw-r--r--@  1 ellysuh  staff   4800 Jul 31 20:26 Dockerfile
+-rw-r--r--@  1 ellysuh  staff  11181 Jul 30 20:21 GUIDE.md
+drwxr-xr-x@  5 ellysuh  staff    160 Jul 31 20:25 app
+drwxr-xr-x@  3 ellysuh  staff     96 Jul 31 20:26 bindmount-demo
+drwxr-xr-x@  2 ellysuh  staff     64 Jul 31 20:24 evidence
+drwxr-xr-x@  6 ellysuh  staff    192 Jul 31 20:35 logs
+-rw-r--r--@  1 ellysuh  staff  12610 Jul 30 20:19 mission.txt
+drwxr-xr-x@  7 ellysuh  staff    224 Jul 31 20:35 scripts
+drwxr-xr-x@  3 ellysuh  staff     96 Jul 31 20:25 templates
+
+### [2-1] 숨김 파일 없이 보면? — ls (.git, .gitignore 등이 보이지 않는다)
+
+$ ls
+CONCEPTS.md
+Dockerfile
+GUIDE.md
+app
+bindmount-demo
+evidence
+logs
+mission.txt
+scripts
+templates
+
+### [3] 디렉토리 생성 — mkdir -p (중간 경로까지 한 번에 생성)
+
+$ mkdir -p practice/docs practice/backup
+
+
+$ ls -la practice
+total 0
+drwxr-xr-x@  4 ellysuh  staff  128 Jul 31 20:35 .
+drwxr-xr-x@ 17 ellysuh  staff  544 Jul 31 20:35 ..
+drwxr-xr-x@  2 ellysuh  staff   64 Jul 31 20:35 backup
+drwxr-xr-x@  2 ellysuh  staff   64 Jul 31 20:35 docs
+
+### [4] 빈 파일 생성 — touch (크기 0 바이트로 만들어진다)
+
+$ touch practice/empty-note.txt
+
+
+$ ls -l practice/empty-note.txt
+-rw-r--r--@ 1 ellysuh  staff  0 Jul 31 20:35 practice/empty-note.txt
+
+### [5] 파일에 내용 쓰고 확인 — cat
+
+$ printf "첫 번째 줄입니다.\n두 번째 줄입니다.\n" > practice/hello.txt
+
+
+$ cat practice/hello.txt
+첫 번째 줄입니다.
+두 번째 줄입니다.
+
+### [6] 복사 — cp
+
+$ cp practice/hello.txt practice/backup/hello-copy.txt
+
+
+$ ls -l practice/backup
+total 8
+-rw-r--r--@ 1 ellysuh  staff  50 Jul 31 20:35 hello-copy.txt
+
+### [7] 이름 변경 — mv (같은 폴더 안에서 옮기면 이름 변경이 된다)
+
+$ mv practice/backup/hello-copy.txt practice/backup/hello-renamed.txt
+
+
+$ ls -l practice/backup
+total 8
+-rw-r--r--@ 1 ellysuh  staff  50 Jul 31 20:35 hello-renamed.txt
+
+### [8] 이동 — mv (다른 폴더로 옮기기)
+
+$ mv practice/empty-note.txt practice/docs/
+
+
+$ ls -l practice/docs
+total 0
+-rw-r--r--@ 1 ellysuh  staff  0 Jul 31 20:35 empty-note.txt
+
+### [9] 디렉토리 이동 — cd (절대 경로 vs 상대 경로 비교)
+
+### [9-1] 절대 경로로 이동 — / 부터 전부 적는 방식. 어디서 실행하든 같은 곳으로 간다
+
+$ cd /Users/ellysuh/Documents/1-homework/practice/docs
+
+$ pwd
+/Users/ellysuh/Documents/1-homework/practice/docs
+
+### [9-2] 상대 경로로 이동 — .. 는 부모 폴더. 지금 위치가 기준이 된다
+
+$ cd ..
+
+$ pwd
+/Users/ellysuh/Documents/1-homework/practice
+
+### [9-3] 같은 파일을 두 방식으로 접근 — 결과가 완전히 동일함을 확인
+
+$ cat /Users/ellysuh/Documents/1-homework/practice/hello.txt
+첫 번째 줄입니다.
+두 번째 줄입니다.
+
+$ cat ./hello.txt
+첫 번째 줄입니다.
+두 번째 줄입니다.
+
+### [9-4] 상대 경로는 '현재 위치'가 바뀌면 가리키는 대상도 바뀐다
+
+$ cd /Users/ellysuh/Documents/1-homework/practice/docs
+
+$ pwd
+/Users/ellysuh/Documents/1-homework/practice/docs
+
+$ cat ./hello.txt
+cat: ./hello.txt: No such file or directory
+[exit code: 1]
+
+$ cd /Users/ellysuh/Documents/1-homework
+
+### [10] 삭제 — rm (파일) / rm -r (폴더째)
+
+$ rm practice/backup/hello-renamed.txt
+
+
+$ ls -la practice/backup
+total 0
+drwxr-xr-x@ 2 ellysuh  staff   64 Jul 31 20:35 .
+drwxr-xr-x@ 5 ellysuh  staff  160 Jul 31 20:35 ..
+
+$ rm -r practice/backup
+
+
+$ ls -la practice
+total 8
+drwxr-xr-x@  4 ellysuh  staff  128 Jul 31 20:35 .
+drwxr-xr-x@ 17 ellysuh  staff  544 Jul 31 20:35 ..
+drwxr-xr-x@  3 ellysuh  staff   96 Jul 31 20:35 docs
+-rw-r--r--@  1 ellysuh  staff   50 Jul 31 20:35 hello.txt
+
+### [완료] 터미널 기본 조작 9종 실습 종료
+
+$ pwd
+/Users/ellysuh/Documents/1-homework

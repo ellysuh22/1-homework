@@ -1,0 +1,205 @@
+===============================================================
+ 04-container-basics.log
+ 수집 시각: 2026-07-31 20:35:18 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### [1] hello-world 실행 — Docker 설치가 정상인지 확인하는 표준 테스트
+
+###       이 이미지는 메시지를 출력하고 곧바로 종료한다.
+
+$ docker run --name hello-test hello-world
+
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+
+To generate this message, Docker took the following steps:
+ 1. The Docker client contacted the Docker daemon.
+ 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+    (arm64v8)
+ 3. The Docker daemon created a new container from that image which runs the
+    executable that produces the output you are currently reading.
+ 4. The Docker daemon streamed that output to the Docker client, which sent it
+    to your terminal.
+
+To try something more ambitious, you can run an Ubuntu container with:
+ $ docker run -it ubuntu bash
+
+Share images, automate workflows, and more with a free Docker ID:
+ https://hub.docker.com/
+
+For more examples and ideas, visit:
+ https://docs.docker.com/get-started/
+
+### [1-1] 종료된 컨테이너도 기록에 남는다 — docker ps -a 로 확인
+
+$ docker ps -a --filter name=hello-test --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+NAMES        IMAGE         STATUS
+hello-test   hello-world   Exited (0) Less than a second ago
+
+### [2] ubuntu 컨테이너 실행 후 내부 진입 — docker run -it
+
+###       -i = 입력을 열어둠, -t = 가상 터미널 할당.
+
+###       아래 'bash-5.2#' 이 컨테이너 내부의 프롬프트다. 즉 컨테이너 안에 들어간 상태.
+
+$ docker run -it --rm --name ubuntu-lab ubuntu:24.04 bash
+bash-5.2# pwd
+/
+bash-5.2# ls
+bin   dev  home  media  opt   root  sbin  sys  usr
+boot  etc  lib   mnt    proc  run   srv   tmp  var
+bash-5.2# echo "hello from ubuntu container"
+hello from ubuntu container
+bash-5.2# whoami
+root
+bash-5.2# cat /etc/os-release
+PRETTY_NAME="Ubuntu 24.04.4 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.4 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+bash-5.2# exit
+exit
+
+### [2-1] exit 로 나오면 컨테이너도 함께 종료된다 (--rm 을 줬으므로 기록도 삭제됨)
+
+$ docker ps -a --filter name=ubuntu-lab
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+### [3] === 컨테이너 종료/유지의 차이 관찰: attach vs exec ===
+
+### [3-0] 1초마다 숫자를 출력하는 컨테이너를 백그라운드(-d)로 실행
+
+$ docker run -d --name tick-demo ubuntu:24.04 sh -c 'i=1; while true; do echo "tick $i"; i=$((i+1)); sleep 1; done'
+49f080fd5fbe009b600ecf74ee89af70d4579b9eb866081f5ce140a03061ff91
+
+### [3-1] docker logs — 컨테이너 '밖에서' 출력만 열람한다
+
+###       컨테이너에 들어가지 않으므로 아무 영향도 주지 않는다.
+
+$ docker logs tick-demo
+tick 1
+tick 2
+tick 3
+tick 4
+tick 5
+
+$ docker ps --filter name=tick-demo --format 'table {{.Names}}\t{{.Status}}'
+NAMES       STATUS
+tick-demo   Up 4 seconds
+
+### [3-2] docker exec — 실행 중인 컨테이너에 '새로운 별도 세션'을 하나 더 연다
+
+$ docker exec tick-demo sh -c 'echo "exec 로 들어와서 실행한 명령입니다"; echo "---"; ls /'
+exec 로 들어와서 실행한 명령입니다
+---
+bin
+boot
+dev
+etc
+home
+lib
+media
+mnt
+opt
+proc
+root
+run
+sbin
+srv
+sys
+tmp
+usr
+var
+
+###       >>> 관찰: exec 를 마치고 빠져나와도 컨테이너는 그대로 Up 이다
+
+$ docker ps --filter name=tick-demo --format 'table {{.Names}}\t{{.Status}}'
+NAMES       STATUS
+tick-demo   Up 4 seconds
+
+### [3-3] docker attach — 컨테이너의 '메인 프로세스'가 쓰는 화면에 직접 연결한다
+
+###       새 세션을 만드는 게 아니라 원래 돌아가던 프로세스에 붙는 것이다.
+
+###       그래서 여기서 Ctrl+C(SIGINT)를 누르면 그 신호가 메인 프로세스로 전달된다.
+
+$ docker attach tick-demo
+tick 6
+tick 7
+tick 8
+^C          <-- 3초 뒤 Ctrl+C 로 빠져나옴
+
+###       >>> 관찰: attach 에서 Ctrl+C 로 나온 뒤의 컨테이너 상태
+
+$ docker ps -a --filter name=tick-demo --format 'table {{.Names}}\t{{.Status}}'
+NAMES       STATUS
+tick-demo   Exited (130) 2 seconds ago
+
+### [4] === Docker 기본 운영 명령 ===
+
+### [4-0] 중지된 컨테이너를 다시 시작 — docker start
+
+$ docker start tick-demo
+tick-demo
+
+### [4-1] 실행 중인 컨테이너 목록 — docker ps
+
+$ docker ps
+CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS         PORTS     NAMES
+49f080fd5fbe   ubuntu:24.04   "sh -c 'i=1; while t…"   14 seconds ago   Up 3 seconds             tick-demo
+
+### [4-2] 종료된 것까지 포함한 전체 목록 — docker ps -a
+
+$ docker ps -a
+CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS                      PORTS     NAMES
+49f080fd5fbe   ubuntu:24.04   "sh -c 'i=1; while t…"   14 seconds ago   Up 3 seconds                          tick-demo
+8bfca44362a2   hello-world    "/hello"                 14 seconds ago   Exited (0) 13 seconds ago             hello-test
+
+### [4-3] 로그 확인 — docker logs (--tail 로 마지막 N줄만)
+
+$ docker logs --tail 5 tick-demo
+tick 8
+tick 1
+tick 2
+tick 3
+tick 4
+
+### [4-4] 리소스 사용량 확인 — docker stats
+
+###       docker stats 는 화면을 계속 갱신하는 실시간 모드라 로그로 남길 수 없다.
+
+###       --no-stream 을 붙이면 현재 시점 스냅샷 1회만 출력하고 종료한다.
+
+$ docker stats --no-stream
+CONTAINER ID   NAME        CPU %     MEM USAGE / LIMIT   MEM %     NET I/O         BLOCK I/O   PIDS
+49f080fd5fbe   tick-demo   0.10%     832KiB / 11.74GiB   0.01%     1.13kB / 126B   0B / 0B     2
+
+### [4-5] 컨테이너 중지 — docker stop
+
+$ docker stop tick-demo
+tick-demo
+
+$ docker ps -a --filter name=tick-demo --format 'table {{.Names}}\t{{.Status}}'
+NAMES       STATUS
+tick-demo   Exited (137) Less than a second ago
+
+### [4-6] 컨테이너 삭제 — docker rm (실습 정리)
+
+$ docker rm tick-demo hello-test
+tick-demo
+hello-test
+
+$ docker ps -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+### [완료] 컨테이너 실행 실습 및 기본 운영 명령 종료

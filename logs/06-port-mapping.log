@@ -1,0 +1,214 @@
+===============================================================
+ 06-port-mapping.log
+ 수집 시각: 2026-07-31 20:38:43 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### [1] 포트 매핑 1회차 — 호스트 8080 -> 컨테이너 80
+
+###       (Phase 5 에서 이미 실행해 둔 컨테이너)
+
+$ docker ps --filter name=web-8080 --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}'
+NAMES      PORTS                                     STATUS
+web-8080   0.0.0.0:8080->80/tcp, [::]:8080->80/tcp   Up About a minute (healthy)
+
+### [2] 포트 매핑 2회차 — 같은 이미지를 호스트 8081 로 하나 더 실행
+
+###       이미지는 하나지만 컨테이너는 여러 개 만들 수 있다. (붕어빵 틀 : 붕어빵)
+
+$ docker run -d -p 8081:80 --name web-8081 my-web:1.0
+6f10e39b8c1b9f202f75be4edc733bc85cffea660ea60f035af9df84dab1664c
+
+### [3] 두 컨테이너가 서로 다른 호스트 포트로 동시에 떠 있는지 확인
+
+$ docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}\t{{.Status}}'
+NAMES      IMAGE        PORTS                                     STATUS
+web-8081   my-web:1.0   0.0.0.0:8081->80/tcp, [::]:8081->80/tcp   Up 3 seconds (health: starting)
+web-8080   my-web:1.0   0.0.0.0:8080->80/tcp, [::]:8080->80/tcp   Up 2 minutes (healthy)
+
+### [4] 접속 검증 — 8080 포트
+
+$ curl -sS -i http://localhost:8080
+HTTP/1.1 200 OK
+Server: nginx/1.29.8
+Date: Fri, 31 Jul 2026 11:38:46 GMT
+Content-Type: text/html
+Content-Length: 1176
+Last-Modified: Fri, 31 Jul 2026 11:25:11 GMT
+Connection: keep-alive
+ETag: "6a6c8617-498"
+X-App-Env: dev
+X-App-Port: 80
+Accept-Ranges: bytes
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>개발 워크스테이션 구축 — my-web</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <p class="badge">Docker Custom Image</p>
+    <h1>개발 워크스테이션 구축</h1>
+    <p class="lead">
+      이 페이지는 <strong>직접 작성한 Dockerfile</strong>로 빌드한
+      커스텀 nginx 이미지가 서빙하고 있습니다.
+    </p>
+
+    <dl class="meta">
+      <div>
+        <dt>이미지</dt>
+        <dd><code>my-web:1.0</code></dd>
+      </div>
+      <div>
+        <dt>베이스 이미지</dt>
+        <dd><code>nginx:1.29-alpine</code></dd>
+      </div>
+      <div>
+        <dt>콘텐츠 출처</dt>
+        <dd><span class="source-image">이미지 내장 (app/index.html)</span></dd>
+      </div>
+    </dl>
+
+    <p class="hint">
+      환경변수 확인용 엔드포인트 →
+      <a href="/env"><code>/env</code></a>
+    </p>
+
+    <footer>
+      <p>미션: 터미널 · Docker · Git/GitHub 개발 환경 구성</p>
+    </footer>
+  </main>
+</body>
+</html>
+
+### [5] 접속 검증 — 8081 포트 (같은 이미지, 다른 포트로 동일하게 응답)
+
+$ curl -sS -i http://localhost:8081
+HTTP/1.1 200 OK
+Server: nginx/1.29.8
+Date: Fri, 31 Jul 2026 11:38:46 GMT
+Content-Type: text/html
+Content-Length: 1176
+Last-Modified: Fri, 31 Jul 2026 11:25:11 GMT
+Connection: keep-alive
+ETag: "6a6c8617-498"
+X-App-Env: dev
+X-App-Port: 80
+Accept-Ranges: bytes
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>개발 워크스테이션 구축 — my-web</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <p class="badge">Docker Custom Image</p>
+    <h1>개발 워크스테이션 구축</h1>
+    <p class="lead">
+      이 페이지는 <strong>직접 작성한 Dockerfile</strong>로 빌드한
+      커스텀 nginx 이미지가 서빙하고 있습니다.
+    </p>
+
+    <dl class="meta">
+      <div>
+        <dt>이미지</dt>
+        <dd><code>my-web:1.0</code></dd>
+      </div>
+      <div>
+        <dt>베이스 이미지</dt>
+        <dd><code>nginx:1.29-alpine</code></dd>
+      </div>
+      <div>
+        <dt>콘텐츠 출처</dt>
+        <dd><span class="source-image">이미지 내장 (app/index.html)</span></dd>
+      </div>
+    </dl>
+
+    <p class="hint">
+      환경변수 확인용 엔드포인트 →
+      <a href="/env"><code>/env</code></a>
+    </p>
+
+    <footer>
+      <p>미션: 터미널 · Docker · Git/GitHub 개발 환경 구성</p>
+    </footer>
+  </main>
+</body>
+</html>
+
+### [6] 두 응답이 실제로 같은 내용인지 비교
+
+$ curl -sS http://localhost:8080 | shasum -a 256
+ffbea74a8cc62ed02dac1e7fd3266566a3a1612da8338a87a7f47e357140327b  -
+
+$ curl -sS http://localhost:8081 | shasum -a 256
+ffbea74a8cc62ed02dac1e7fd3266566a3a1612da8338a87a7f47e357140327b  -
+
+### [7] === 포트 충돌 실험 === 이미 쓰고 있는 8080 을 또 요청하면?
+
+###       호스트의 한 포트는 한 프로세스만 쓸 수 있으므로 실패해야 정상이다.
+
+$ docker run -d -p 8080:80 --name web-conflict my-web:1.0
+cfe626cce2a8ad336a21c2d9e5ec44a9cad75a07f973b1d510a11db524f32b09
+docker: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint web-conflict (ef9fd45b565247ffc1d1e23158714a76b19a40175f71431a28f654aec6b3d9ff): Bind for 0.0.0.0:8080 failed: port is already allocated
+
+Run 'docker run --help' for more information
+[exit code: 125]
+
+$ docker ps -a --filter name=web-conflict --format 'table {{.Names}}\t{{.Status}}'
+NAMES          STATUS
+web-conflict   Created
+
+###       실패한 컨테이너 정리
+
+$ docker rm -f web-conflict
+web-conflict
+
+### [8] === EXPOSE 와 -p 의 차이 === 미션 목표 '포트 매핑이 필요한 이유' 근거
+
+###       EXPOSE 는 이미지에 적힌 '문서'일 뿐 실제로 포트를 열어주지 않는다.
+
+###       -p 없이 실행하면 EXPOSE 80 이 있어도 호스트에서 접속할 수 없다.
+
+$ docker run -d --name web-noport my-web:1.0
+105d69b29c7cd6bbbb7be6e0d4c12cadbd3c9fa13d98d1ce0ccc5026e211ebb8
+
+$ docker ps --filter name=web-noport --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}'
+NAMES        PORTS     STATUS
+web-noport   80/tcp    Up 2 seconds (health: starting)
+
+###       PORTS 칸에 '80/tcp' 만 있고, 앞에 '0.0.0.0:8082->' 같은 호스트 포트가 없다.
+
+###       즉 EXPOSE 선언만 표시될 뿐 호스트와 연결되지는 않았다. 접속을 시도해 보면:
+
+$ curl -sS --max-time 5 http://localhost:8082
+curl: (7) Failed to connect to localhost port 8082 after 0 ms: Couldn't connect to server
+[exit code: 7]
+
+###       >>> 결론: 컨테이너 안에서 nginx 는 잘 돌고 있지만(아래 확인),
+
+###                -p 로 다리를 놓지 않으면 호스트에서는 닿을 수 없다.
+
+$ docker exec web-noport wget -q -O - http://127.0.0.1:80/env
+APP_ENV=dev
+APP_PORT=80
+
+$ docker rm -f web-noport
+web-noport
+
+### [9] 최종 상태 — 포트 매핑된 컨테이너 2개가 정상 동작 중
+
+$ docker ps --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}'
+NAMES      PORTS                                     STATUS
+web-8081   0.0.0.0:8081->80/tcp, [::]:8081->80/tcp   Up 5 seconds (healthy)
+web-8080   0.0.0.0:8080->80/tcp, [::]:8080->80/tcp   Up 2 minutes (healthy)
+
+### [완료] 포트 매핑 2회 검증 완료 (브라우저 접속 증거는 evidence/ 폴더 참고)

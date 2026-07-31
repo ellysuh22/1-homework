@@ -1,0 +1,154 @@
+===============================================================
+ 08-volume.log
+ 수집 시각: 2026-07-31 20:42:46 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### ====================================================================
+
+###  실험 A — 볼륨을 사용하면 컨테이너를 지워도 데이터가 남는다
+
+### ====================================================================
+
+### [A-1] 볼륨 생성 — docker volume create
+
+$ docker volume create my-data
+my-data
+
+### [A-2] 볼륨 목록 확인 — docker volume ls
+
+$ docker volume ls
+DRIVER    VOLUME NAME
+local     my-data
+
+### [A-3] 볼륨 상세 확인 — docker volume inspect
+
+###       Mountpoint 는 Docker 가 관리하는 저장 위치다. (컨테이너와 분리되어 있다)
+
+$ docker volume inspect my-data
+[
+    {
+        "CreatedAt": "2026-07-31T20:42:46+09:00",
+        "Driver": "local",
+        "Labels": null,
+        "Mountpoint": "/var/lib/docker/volumes/my-data/_data",
+        "Name": "my-data",
+        "Options": null,
+        "Scope": "local"
+    }
+]
+
+### [A-4] 볼륨을 연결한 컨테이너 실행 — -v <볼륨이름>:<컨테이너경로>
+
+$ docker run -d --name vol-test -v my-data:/data ubuntu:24.04 sleep infinity
+4772bae0b8f16e4510124ed2c7159a8557f1d1797d8ab5b7d6f63165f29c6328
+
+### [A-5] 연결 상태 확인 — Type 이 'volume' 인 것을 주목 (바인드 마운트는 'bind')
+
+$ docker inspect vol-test --format '{{range .Mounts}}Type={{.Type}}  Name={{.Name}}  Destination={{.Destination}}{{println}}{{end}}'
+Type=volume  Name=my-data  Destination=/data
+
+### [A-6] 컨테이너 안에서 볼륨에 데이터 기록
+
+$ docker exec vol-test bash -c 'echo "이 데이터는 볼륨에 저장됩니다." > /data/hello.txt; date "+기록 시각: %Y-%m-%d %H:%M:%S" >> /data/hello.txt; cat /data/hello.txt'
+이 데이터는 볼륨에 저장됩니다.
+기록 시각: 2026-07-31 11:42:47
+
+### [A-7] === 삭제 전 === 데이터가 확실히 있는지 확인
+
+$ docker exec vol-test cat /data/hello.txt
+이 데이터는 볼륨에 저장됩니다.
+기록 시각: 2026-07-31 11:42:47
+
+$ docker exec vol-test ls -la /data
+total 4
+drwxr-xr-x 1 root root 18 Jul 31 11:42 .
+drwxr-xr-x 1 root root 14 Jul 31 11:42 ..
+-rw-r--r-- 1 root root 79 Jul 31 11:42 hello.txt
+
+### [A-8] *** 컨테이너를 완전히 삭제한다 *** — docker rm -f
+
+$ docker rm -f vol-test
+vol-test
+
+$ docker ps -a --filter name=vol-test
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+### [A-9] 컨테이너는 사라졌지만 볼륨은 그대로 남아있는지 확인
+
+$ docker volume ls
+DRIVER    VOLUME NAME
+local     my-data
+
+### [A-10] === 삭제 후 === 새 컨테이너에 같은 볼륨을 연결해서 읽어본다
+
+$ docker run -d --name vol-test2 -v my-data:/data ubuntu:24.04 sleep infinity
+fc00e7ef4eb497add1c37a18cb4820788d8e321422b8e21eb785e27eaa6a0279
+
+$ docker exec vol-test2 cat /data/hello.txt
+이 데이터는 볼륨에 저장됩니다.
+기록 시각: 2026-07-31 11:42:47
+
+### >>> 결과: 컨테이너를 지웠는데도 데이터가 그대로 살아있다. 이것이 '영속성'이다.
+
+### 
+
+### ====================================================================
+
+###  실험 B — 대조군: 볼륨 없이 하면 데이터가 사라진다
+
+### ====================================================================
+
+### [B-1] 볼륨 연결 없이 컨테이너 실행
+
+$ docker run -d --name novol-test ubuntu:24.04 sleep infinity
+9b67adae402fa253957340128ecd6787beb8537c4396e55463372cbaab819efc
+
+### [B-2] 컨테이너 내부에 똑같이 파일 기록 (이번엔 볼륨이 아니라 컨테이너 자체 저장소)
+
+$ docker exec novol-test bash -c 'echo "이 데이터는 컨테이너 안에만 있습니다." > /data-inside.txt; cat /data-inside.txt'
+이 데이터는 컨테이너 안에만 있습니다.
+
+### [B-3] === 삭제 전 === 파일 존재 확인
+
+$ docker exec novol-test ls -l /data-inside.txt
+-rw-r--r-- 1 root root 54 Jul 31 11:42 /data-inside.txt
+
+### [B-4] *** 컨테이너 삭제 ***
+
+$ docker rm -f novol-test
+novol-test
+
+### [B-5] === 삭제 후 === 같은 이미지로 새 컨테이너를 띄워 같은 파일을 찾아본다
+
+$ docker run -d --name novol-test2 ubuntu:24.04 sleep infinity
+fae5f17e2c0044baf415ce483727621f27985223d8bc8d4640ece109eb147840
+
+###       아래 명령은 'No such file or directory' 로 실패해야 정상이다.
+
+$ docker exec novol-test2 cat /data-inside.txt
+cat: /data-inside.txt: No such file or directory
+[exit code: 1]
+
+### >>> 결과: 볼륨 없이 컨테이너 안에 저장한 데이터는 컨테이너와 함께 사라졌다.
+
+###          실험 A 와 B 를 비교하면 데이터를 지켜준 것이 '볼륨'임이 증명된다.
+
+### 
+
+### [정리] 실습 컨테이너 삭제 (볼륨은 남겨두어 증거로 보존)
+
+$ docker rm -f vol-test2 novol-test2
+vol-test2
+novol-test2
+
+$ docker volume ls
+DRIVER    VOLUME NAME
+local     my-data
+
+$ docker ps -a
+CONTAINER ID   IMAGE        COMMAND                  CREATED         STATUS                   PORTS                                     NAMES
+6f10e39b8c1b   my-web:1.0   "/docker-entrypoint.…"   4 minutes ago   Up 4 minutes (healthy)   0.0.0.0:8081->80/tcp, [::]:8081->80/tcp   web-8081
+4c2bb7cf62dc   my-web:1.0   "/docker-entrypoint.…"   6 minutes ago   Up 6 minutes (healthy)   0.0.0.0:8080->80/tcp, [::]:8080->80/tcp   web-8080
+
+### [완료] 볼륨 영속성 검증 완료
