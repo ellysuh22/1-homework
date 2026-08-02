@@ -357,3 +357,47 @@ $ git status --short
 ###       git add -A 를 쓰지 않는 이유: 저장소에 과제와 무관한 개인 이미지 등이
 
 ###       남아 있을 수 있어, 공개 저장소에 의도치 않게 올라가는 것을 막기 위함이다.
+
+$ git add README.md REPORT.md logs/10-ssh-key.log evidence/github-ssh-key.png scripts/10-ssh-key.sh scripts/10b-ssh-push.sh scripts/10c-passphrase.sh
+
+
+$ git status --short --untracked-files=no
+ M Dockerfile
+M  README.md
+M  REPORT.md
+ M app/index.html
+ M bindmount-demo/index.html
+A  evidence/github-ssh-key.png
+AM logs/10-ssh-key.log
+A  scripts/10-ssh-key.sh
+A  scripts/10b-ssh-push.sh
+A  scripts/10c-passphrase.sh
+
+$ git commit -m 'docs: 보너스 - GitHub SSH 키 설정 및 동작 검증'
+[main 87f8939] docs: 보너스 - GitHub SSH 키 설정 및 동작 검증
+ 7 files changed, 1110 insertions(+), 9 deletions(-)
+ create mode 100644 evidence/github-ssh-key.png
+ create mode 100644 logs/10-ssh-key.log
+ create mode 100755 scripts/10-ssh-key.sh
+ create mode 100755 scripts/10b-ssh-push.sh
+ create mode 100755 scripts/10c-passphrase.sh
+
+### [D-4] *** push *** — 출력 첫 줄의 대상 주소를 주목한다
+
+###       'To https://...' 이면 HTTPS, 'To github.com:...' 이면 SSH 로 나간 것이다.
+
+$ git push origin main
+To github.com:ellysuh22/1-homework.git
+   d6d018e..87f8939  main -> main
+
+### [D-5] 원격에 반영됐는지 확인
+
+$ git log --oneline -1
+87f8939 docs: 보너스 - GitHub SSH 키 설정 및 동작 검증
+
+$ git branch -vv
+* main 87f8939 [origin/main] docs: 보너스 - GitHub SSH 키 설정 및 동작 검증
+
+### >>> 결과: 토큰 입력 없이 키만으로 push 가 완료됐다.
+
+###          미션 요구인 'HTTPS 대신 SSH 로 푸시가 가능하도록' 을 충족한다.

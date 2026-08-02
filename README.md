@@ -1577,7 +1577,26 @@ d6d018edb997a7d2a212031736d0fc0862e55e54	refs/heads/main
 
 `ssh -T`는 "인사"까지만 확인합니다. 미션이 요구한 것은 *"푸시가 가능하도록"*이므로 **실제 push**까지 검증했습니다.
 
-<!-- PUSH-LOG -->
+```bash
+$ git remote -v
+origin	git@github.com:ellysuh22/1-homework.git (fetch)
+origin	git@github.com:ellysuh22/1-homework.git (push)
+
+$ git commit -m 'docs: 보너스 - GitHub SSH 키 설정 및 동작 검증'
+[main 87f8939] docs: 보너스 - GitHub SSH 키 설정 및 동작 검증
+ 7 files changed, 1110 insertions(+), 9 deletions(-)
+
+$ git push origin main
+To github.com:ellysuh22/1-homework.git
+   d6d018e..87f8939  main -> main
+
+$ git branch -vv
+* main 87f8939 [origin/main] docs: 보너스 - GitHub SSH 키 설정 및 동작 검증
+```
+
+> **읽는 법** — push 출력 첫 줄이 `To github.com:ellysuh22/...` 입니다. HTTPS였다면 `To https://github.com/...` 로 나옵니다. **`git@` 형식으로 찍혔다는 것 자체가 SSH 경로로 나갔다는 증거**이며, 이 과정에서 토큰 입력은 한 번도 없었습니다. [14-4절](#14-4-커밋-및-업로드)의 `To https://github.com/...` 출력과 나란히 놓고 보면 전환이 그대로 드러납니다.
+
+**스테이징에 대한 참고** — 이 스크립트는 `git add -A`를 쓰지 않고 **파일을 명시적으로 지정**합니다. 저장소 폴더에 과제와 무관한 개인 이미지가 남아 있을 수 있는데, 공개 저장소에 의도치 않게 올라가는 것을 막기 위해서입니다. ([18장](#18-보안-및-개인정보-보호)의 원칙을 커밋 단계에도 적용)
 
 ### 19-9. 인증 방식 차이 — 토큰과 키
 
