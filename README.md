@@ -58,15 +58,15 @@ orbstack *   OrbStack                                  unix:///Users/ellysuh/.or
 - [x] **Git** 사용자 정보·기본 브랜치 설정 및 `git config --list` 기록
 - [x] **GitHub** 저장소 연동 및 VSCode 연동
 
-### 3-2. 보너스 항목 (선택 — 기본 과제 완료 후 추가 예정)
+### 3-2. 보너스 항목 (선택 — 아래 중 **GitHub SSH 키**를 선택해 수행)
 
 - [ ] Docker Compose 기초 (단일 서비스)
 - [ ] Docker Compose 멀티 컨테이너 + 네트워크 통신
 - [ ] Compose 운영 명령어 (`up`/`down`/`ps`/`logs`)
 - [ ] 환경 변수로 서버 포트/모드 변경
-- [ ] GitHub SSH 키 설정
+- [x] **GitHub SSH 키 설정** — 키 등록 + 인증 동작 확인 + HTTPS→SSH 전환 ([19장](#19-보너스--github-ssh-키-설정))
 
-> 보너스를 나중에 추가해도 기존 산출물은 수정되지 않도록 설계했습니다. 자세한 내용은 [17-3절](#17-3-보너스-확장을-고려한-설계)을 참고하세요.
+> 보너스를 나중에 추가해도 기존 산출물은 수정되지 않도록 설계했습니다. 자세한 내용은 [17-3절](#17-3-보너스-확장을-고려한-설계)을 참고하세요. 실제로 SSH 키 항목을 추가할 때 **기존 장(6~18장)은 한 줄도 고치지 않았고**, 19장을 뒤에 붙이는 것으로 끝났습니다.
 
 ---
 
@@ -91,6 +91,10 @@ orbstack *   OrbStack                                  unix:///Users/ellysuh/.or
 | 바인드 마운트 | 호스트 파일 수정 후 `curl` | `v1` → `v2` 즉시 반영 | [logs/07-bind-mount.log](logs/07-bind-mount.log) |
 | 볼륨 영속성 | `docker rm -f` 후 새 컨테이너에서 `cat` | 데이터 유지 | [logs/08-volume.log](logs/08-volume.log) |
 | Git 설정 | `git config --list` | user.name/email/defaultBranch 확인 | [logs/09-git-github.log](logs/09-git-github.log) |
+| SSH 인증 성공 *(보너스)* | `ssh -T git@github.com` | `Hi ellysuh22! You've successfully authenticated` | [logs/10-ssh-key.log](logs/10-ssh-key.log) |
+| SSH 인증 실효성 *(보너스)* | 키 차단 후 `ssh -T` | `Permission denied (publickey).` | [logs/10-ssh-key.log](logs/10-ssh-key.log) |
+| HTTPS→SSH 전환 *(보너스)* | `git remote -v` 전/후 | `https://...` → `git@github.com:...` | [logs/10-ssh-key.log](logs/10-ssh-key.log) |
+| 키 등록 *(보너스)* | `ssh-keygen -lf` ↔ GitHub 화면 | 지문 `SHA256:Xq44…UPc` 일치 | ![](evidence/github-ssh-key.png) |
 
 ---
 
@@ -112,8 +116,10 @@ orbstack *   OrbStack                                  unix:///Users/ellysuh/.or
 ├── scripts/                         # 실습 수행 + 로그 수집 스크립트
 │   ├── runlog.sh                    #   명령어+출력을 함께 기록하는 헬퍼
 │   ├── 01-terminal.sh ~ 08-volume.sh
+│   ├── 10-ssh-key.sh                #   (보너스) SSH 키 설정/검증 — setup·verify 2단계
+│   └── 10b-ssh-push.sh              #   (보너스) SSH 경로로 실제 push 증거 수집
 ├── logs/                            # 터미널 조작 로그 (명령어 + 출력)
-│   └── 01-terminal.log ~ 09-git-github.log
+│   └── 01-terminal.log ~ 10-ssh-key.log
 ├── evidence/                        # 브라우저·GUI 스크린샷
 ├── mission.txt                      # 과제 원문
 ├── GUIDE.md                         # 단계별 실행 가이드 (부록)
@@ -1198,6 +1204,59 @@ APP_PORT=80                                          # ← 컨테이너 안에�
 
 - **대안**: 권한 부여가 불가능한 환경이라면 `Cmd+Shift+4` → `Space` → 창 클릭으로 수동 캡처하거나, 브라우저 화면 대신 `curl -i` 응답 로그를 증거로 대체할 수 있습니다. (다만 미션은 주소창이 보이는 브라우저 캡처를 요구하므로 수동 캡처가 더 적절합니다.)
 
+### 16-6. 이슈 6 — SSH 대조군 실험이 "실패해야 하는데" 성공해버림
+
+- **문제**: [19-5절](#19-5-실험-b--대조군-키를-차단하면-거부된다)의 대조군 실험에서 키를 못 쓰게 막고 접속했는데도 인증이 **통과**했습니다. 거부되어야 정상인데 성공한 것입니다.
+
+  ```bash
+  $ ssh -T -o IdentitiesOnly=yes -o IdentityAgent=none -o IdentityFile=/dev/null -o BatchMode=yes git@github.com
+  Load key "/dev/null": invalid format
+  Hi ellysuh22! You've successfully authenticated, ...   # ← 거부되어야 하는데 통과
+  ```
+
+- **원인 가설**: `IdentitiesOnly=yes`로 키를 하나만 지정했는데도 통과했다면, **내가 모르는 다른 키가 어딘가에서 추가로 제시되고 있을 것**이다.
+- **확인**: `-v` 옵션으로 어떤 키를 제시하는지 추적했습니다.
+
+  ```bash
+  $ ssh -T ... -v git@github.com 2>&1 | grep -iE "identity file|Offering"
+  debug1: identity file /dev/null type -1                       # 내가 지정한 빈 키
+  debug1: identity file /Users/ellysuh/.ssh/id_ed25519 type 2   # ← config가 추가로 붙임
+  debug1: Offering public key: .../id_ed25519 ED25519 SHA256:Xq44… explicit
+  ```
+
+  [19-3절](#19-3-키-생성과-agent키체인-연동)에서 `~/.ssh/config`에 넣은 `IdentityFile ~/.ssh/id_ed25519`가 그대로 적용되고 있었습니다. **`IdentitiesOnly=yes`는 "설정 파일을 무시한다"는 뜻이 아니라 "설정에 명시된 키만 쓴다"는 뜻**이었고, 명령줄 옵션은 설정 파일 항목을 대체하지 않고 **추가**됩니다.
+
+- **해결**: `-F /dev/null`로 설정 파일 자체를 읽지 않게 하여 진짜 "키 없음" 상태를 만들었습니다.
+
+  ```bash
+  $ ssh -T -F /dev/null -o IdentitiesOnly=yes -o IdentityAgent=none \
+        -o IdentityFile=/dev/null -o BatchMode=yes git@github.com
+  git@github.com: Permission denied (publickey).
+  [exit code: 255]
+  ```
+
+- **배운 것**: 대조군 실험은 **"실패가 나오는지"까지 확인해야 실험이 완성**됩니다. 실패를 확인하지 않고 넘어갔다면, 설정 파일이 몰래 키를 공급하고 있다는 사실을 끝까지 몰랐을 것입니다.
+
+### 16-7. 이슈 7 — 공개키를 등록하려던 브라우저가 다른 계정으로 로그인되어 있었음
+
+- **문제**: SSH 공개키를 등록하려고 GitHub을 열었더니, 브라우저가 저장소 소유 계정(`ellysuh22`)이 아닌 **다른 계정**으로 로그인되어 있었습니다.
+- **원인 가설**: 한 브라우저에서 여러 GitHub 계정을 쓰다 보면 마지막에 로그인한 계정이 활성 상태로 남는다. 이대로 키를 등록하면 **인증(`ssh -T`)은 성공하지만 `ellysuh22/1-homework`에 push할 권한은 없어** [16-1절](#16-1-이슈-1--github-계정-불일치로-push-권한-없음)과 똑같은 실패가 재현될 것이다.
+- **확인**: 저장소의 실제 소유자와 내 권한을 CLI로 조회해 대조했습니다.
+
+  ```bash
+  $ gh repo view ellysuh22/1-homework --json owner,visibility,viewerPermission
+  {"owner":{"login":"ellysuh22"},"viewerPermission":"ADMIN","visibility":"PUBLIC"}
+  ```
+
+- **해결**: 브라우저에서 `ellysuh22` 계정으로 전환한 뒤 등록했고, 등록 후 `ssh -T` 응답의 계정명으로 교차 확인했습니다.
+
+  ```bash
+  $ ssh -T git@github.com
+  Hi ellysuh22! You've successfully authenticated, ...   # ← 의도한 계정이 맞는지 확인
+  ```
+
+- **배운 것**: `ssh -T`의 `Hi <계정명>` 은 단순한 인사가 아니라 **"이 키가 어느 계정에 묶여 있는지"를 알려주는 검증 수단**입니다. 성공 여부만 보지 말고 **계정명까지 읽어야** 합니다.
+
 ---
 
 ## 17. 재현 가이드 및 주의사항
@@ -1279,7 +1338,9 @@ bash scripts/08-volume.sh
 |---|---|---|
 | Compose 기초 / 멀티 / 운영명령 | `docker-compose.yml` 신규 (기존 Dockerfile을 `build: .` 로 재사용) | 없음 |
 | 환경 변수로 포트/모드 변경 | 없음 — `docker run -e APP_PORT=3000` 한 줄이면 끝 | **없음** |
-| GitHub SSH 키 | `git remote set-url` (커밋 대상 아님) | 없음 |
+| ~~GitHub SSH 키~~ **→ 수행 완료** | `scripts/10-ssh-key.sh`·`logs/10-ssh-key.log`·19장 신규 | **없음** ✅ |
+
+> **설계가 실제로 검증된 지점** — SSH 키 항목을 수행하면서 기존 6~18장은 **한 줄도 수정하지 않았습니다.** 바뀐 것은 체크박스 한 줄, 검증표 네 줄, 그리고 뒤에 붙인 19장뿐입니다. 다만 [18-1절](#18-1-마스킹-정책)의 "SSH 키 미수행" 문장 하나는 사실이 달라졌으므로 함께 갱신했습니다. 예고했던 대로 [14-3절](#14-3-github-저장소-연동)의 HTTPS 시절 `git remote -v` 출력을 지우지 않고 두었기 때문에, 19장의 전환 후 출력과 나란히 놓는 것만으로 **인증 방식 전/후 비교 자료**가 되었습니다.
 
 핵심은 **환경 변수 항목**입니다. Dockerfile에 `listen 80`을 하드코딩했다면 나중에 포트를 바꾸려고 Dockerfile·README·빌드 로그를 모두 고쳐야 했을 것입니다. 그래서 처음부터 `ARG/ENV APP_PORT` + nginx 템플릿(envsubst) 구조로 만들어 두었습니다. 이 구조는 미션 (A) 방식이 요구하는 "**설정** 교체"도 동시에 만족하므로 기본 과제에서도 낭비가 아닙니다.
 
@@ -1298,7 +1359,19 @@ bash scripts/08-volume.sh
 이 저장소의 문서·로그·스크린샷에는 다음이 포함되지 않도록 관리했습니다.
 
 - **인증 토큰**: `git config --list` 출력에는 credential helper의 **프로그램 경로**만 남고 토큰 값은 저장되지 않습니다. 토큰은 macOS 키체인에 별도 보관됩니다. GitHub 로그인 시 사용한 일회용 코드는 인증 완료와 동시에 무효화되는 값이며 로그에 남기지 않았습니다.
-- **비밀번호·개인키**: 이번 과제에서는 사용하지 않았습니다. (SSH 키는 보너스 과제 항목이며 미수행)
+- **비밀번호**: 문서·로그·스크린샷 어디에도 포함되지 않았습니다.
+- **개인키**: 보너스 과제([19장](#19-보너스--github-ssh-키-설정))에서 SSH 키를 생성했습니다. 개인키(`~/.ssh/id_ed25519`)는 **저장소 밖에만 존재**하며, 문서·로그에는 **공개키와 지문(fingerprint)만** 남겼습니다. 둘 다 공개를 전제로 설계된 값이라 노출돼도 안전합니다. 실제로 검사해 확인했습니다.
+
+  ```bash
+  $ find . -path ./.git -prune -o -name "id_*" -print   # 저장소 내 개인키 파일
+  (없음)
+  $ grep -c "PRIVATE KEY" logs/10-ssh-key.log           # 로그 내 개인키 본문
+  0
+  $ ls -l ~/.ssh/id_ed25519
+  -rw-------@ 1 ellysuh  staff  411  ...                # 소유자만 읽기/쓰기 (600)
+  ```
+
+  > **한계 명시** — 이 키에는 **passphrase를 설정하지 않았습니다.** 따라서 키 파일 자체가 유출되면 그대로 사용될 수 있습니다. 이를 감수한 대신 ① 파일 권한 `600`, ② 저장소와 물리적 분리, ③ 기기별 키 분리(`Macbook-1-homework`)로 관리했고, 유출 시에는 GitHub에서 **해당 공개키 한 줄만 삭제하면 즉시 무효화**됩니다. 운영 환경이라면 `ssh-keygen -p`로 passphrase를 거는 것이 원칙입니다.
 - **스크린샷**: 캡처된 이미지를 모두 직접 열어 토큰·비밀번호·개인정보가 찍히지 않았음을 육안으로 확인했습니다.
 - **공개된 정보**: 커밋 작성자 이메일(`youngsuh0630@gmail.com`)과 홈 디렉토리 경로(`/Users/ellysuh/...`)는 공개 저장소 특성상 노출됩니다. 이는 의도된 것이며 민감정보가 아닙니다.
 
@@ -1311,6 +1384,236 @@ bash scripts/08-volume.sh
    - SSH 키: GitHub Settings → SSH and GPG keys에서 삭제 후 새 키 등록
 2. **문서·로그·스크린샷에서 제거**하고 커밋합니다.
 3. **커밋 히스토리에 남아 있다면** 지운 뒤에도 과거 커밋에서 조회되므로, `git filter-repo` 등으로 히스토리를 재작성하고 force push합니다. (공개 저장소는 이미 크롤링됐을 수 있으므로 1번 재발급이 최우선입니다.)
+
+---
+
+## 19. 보너스 — GitHub SSH 키 설정
+
+전체 로그: [logs/10-ssh-key.log](logs/10-ssh-key.log) · 수행 스크립트: [scripts/10-ssh-key.sh](scripts/10-ssh-key.sh), [scripts/10b-ssh-push.sh](scripts/10b-ssh-push.sh)
+
+### 19-1. 미션 요구를 쪼갠 검증 설계
+
+미션 5장의 요구는 한 문장입니다.
+
+> "**HTTPS 대신** SSH로 **푸시가 가능하도록** 키를 **등록**하고 **동작**을 **확인**한다. 배움 포인트: **인증 방식 차이**와 **보안 습관**"
+
+이 문장을 검증 가능한 단위로 쪼개고, 각각을 어떤 증거로 충족할지 먼저 정했습니다.
+
+| 요구 | 증거 | 위치 |
+|---|---|---|
+| 키를 **등록** | 키 생성 로그 + GitHub 등록 화면 + 지문 대조 | [19-3](#19-3-키-생성과-agent키체인-연동), [19-4](#19-4-공개키-등록과-지문-교차-검증) |
+| **동작** 확인 | `ssh -T` 인증 성공 | [19-5](#19-5-실험-a--키가-있으면-인증에-성공한다) |
+| 인증이 **키 때문**임을 증명 | 키 차단 시 거부되는 대조군 | [19-6](#19-6-실험-b--대조군-키를-차단하면-거부된다) |
+| **HTTPS 대신** | `git remote -v` 전/후 대조 | [19-7](#19-7-실험-c--https에서-ssh로-전환) |
+| **푸시가 가능** | SSH 경로로 실제 `git push` | [19-8](#19-8-실험-d--ssh-경로로-실제-push) |
+| 인증 방식 차이 + 보안 습관 | 개념 정리 + 개인키 격리 검사 | [19-9](#19-9-인증-방식-차이--토큰과-키), [18-1](#18-1-마스킹-정책) |
+
+**설계상 가장 중요한 판단은 대조군을 넣은 것입니다.** [7장(권한)](#7-파일-권한-실습)에서 `chmod 000` 후 `cat`이 거부되는 것으로 권한의 실효성을 증명했고, [13장(볼륨)](#13-볼륨-영속성-증거)에서 볼륨 없는 컨테이너를 나란히 돌려 영속성을 증명했습니다. 같은 방식으로, **키를 차단하면 거부되는지**까지 확인해야 "키 때문에 열린 문"임이 증명됩니다. 성공 화면만으로는 원래 열려 있던 문과 구별되지 않습니다.
+
+### 19-2. Before — 전환 전 상태 고정
+
+바꾸고 나면 되살릴 수 없으므로 **전환 전 상태를 먼저 기록**했습니다.
+
+```bash
+$ git remote -v
+origin	https://github.com/ellysuh22/1-homework.git (fetch)
+origin	https://github.com/ellysuh22/1-homework.git (push)
+
+$ git config --list | grep -i credential
+credential.helper=osxkeychain
+credential.https://github.com.helper=!/opt/homebrew/bin/gh auth git-credential
+
+$ ls -la ~/.ssh
+total 8
+drwxr-xr-x@  3 ellysuh  staff    96 Jul 30 20:23 .
+-rw-r--r--@  1 ellysuh  staff   210 Jul 30 20:23 config      # SSH 키 없음
+```
+
+> 이 시점의 인증은 **HTTPS + 토큰**입니다. `credential.helper`가 그 증거이며, 토큰 값 자체는 macOS 키체인에 있고 설정에는 **프로그램 경로만** 남습니다. ([14-2절](#14-2-git-config---list-결과)과 동일한 상태)
+
+### 19-3. 키 생성과 agent/키체인 연동
+
+```bash
+$ ssh-keygen -t ed25519 -C '<이메일>' -f ~/.ssh/id_ed25519
+키 생성 완료
+
+$ ls -la ~/.ssh
+-rw-r--r--@  1 ellysuh  staff   210 Jul 30 20:23 config
+-rw-------@  1 ellysuh  staff   411 Aug  3 06:38 id_ed25519       # 개인키 = 600
+-rw-r--r--@  1 ellysuh  staff   102 Aug  3 06:38 id_ed25519.pub   # 공개키 = 644
+
+$ ssh-keygen -lf ~/.ssh/id_ed25519.pub
+256 SHA256:Xq44CGli4Z7ANf6f8CDasp+lWYqSrxthF+CQyIirUPc <이메일> (ED25519)
+```
+
+| 선택 | 이유 |
+|---|---|
+| `ed25519` | RSA보다 키가 짧고 빠르면서 안전합니다. GitHub 권장 방식입니다. |
+| 개인키 권한 `600` | [7장](#7-파일-권한-실습)에서 다룬 그 표기입니다. SSH는 개인키가 **남에게 읽히는 권한이면 사용 자체를 거부**합니다. 권한 실습이 실제 도구에서 강제되는 사례입니다. |
+
+`~/.ssh/config`에 github.com 전용 블록을 **파일 맨 아래**에 추가했습니다. 이 파일 맨 위에는 OrbStack이 넣어둔 `Include` 줄이 있고 "맨 위에 있어야 동작한다"고 명시돼 있어, 위쪽을 건드리지 않도록 했습니다.
+
+```bash
+$ tail -n 5 ~/.ssh/config
+Host github.com
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/id_ed25519
+
+$ ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+Identity added: /Users/ellysuh/.ssh/id_ed25519 (<이메일>)
+
+$ ssh-add -l
+256 SHA256:Xq44CGli4Z7ANf6f8CDasp+lWYqSrxthF+CQyIirUPc <이메일> (ED25519)
+```
+
+이어서 **서버 신원**도 등록했습니다. SSH는 한쪽 방향 인증이 아니라 **양방향 확인**입니다.
+
+```bash
+$ ssh-keygen -lF github.com
+# Host github.com found: line 2
+github.com ED25519 SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU
+```
+
+> 처음 접속할 때 뜨는 `Are you sure you want to continue connecting?`가 바로 이 절차입니다. 보통 `yes`를 누르고 지나가지만, 이 과제에서는 `ssh-keyscan`으로 명시 수행하고 **지문을 GitHub 공식 문서(`docs.github.com` → "GitHub's SSH key fingerprints")의 게시값과 대조**했습니다. 값이 일치하므로 중간에서 가로챈 서버가 아님을 확인한 것입니다.
+>
+> - **서버가 나를 확인** → 내 공개키로 서명 검증
+> - **내가 서버를 확인** → 서버 호스트키를 `known_hosts`와 대조
+
+### 19-4. 공개키 등록과 지문 교차 검증
+
+저장소와 GitHub으로 나가는 것은 **공개키뿐**입니다.
+
+```bash
+$ cat ~/.ssh/id_ed25519.pub
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ4lpFpD0F5AqjO/Qulh6SUWcDqCCZy45LYHOhUOwVgz <이메일>
+```
+
+GitHub → Settings → SSH and GPG keys → New SSH key 에 등록했습니다. (**Authentication Key** 선택 — 커밋 서명용 Signing Key가 아니라 접속 인증용입니다.)
+
+![GitHub SSH 키 등록](evidence/github-ssh-key.png)
+
+| 확인 항목 | 화면상 근거 |
+|---|---|
+| 등록 계정 | `ellysuh22 (Your personal account)` — 저장소 소유 계정과 일치 |
+| 키 이름 | `Macbook-1-homework` — 기기별 식별용 |
+| 지문 | `SHA256:Xq44CGli4Z7ANf6f8CDasp+lWYqSrxthF+CQyIirUPc` |
+| 용도 | `Authentication keys` 섹션 · `Read/write` |
+
+> **교차 검증** — 화면의 지문이 로컬 `ssh-keygen -lf` 출력과 **완전히 일치**합니다. 즉 GitHub에 등록된 자물쇠가 내 컴퓨터의 열쇠와 짝이라는 것이 문서상으로 증명됩니다.
+
+### 19-5. 실험 A — 키가 있으면 인증에 성공한다
+
+```bash
+$ ssh -T git@github.com
+Hi ellysuh22! You've successfully authenticated, but GitHub does not provide shell access.
+[exit code: 1]
+```
+
+> **종료 코드 1이 정상입니다.** GitHub은 로그인 셸을 제공하지 않고 git 통신만 허용하므로, 인증에 성공해도 "셸은 못 준다"는 안내와 함께 1로 끝납니다. 실패로 오해하기 쉬운 지점입니다.
+>
+> 또한 `Hi ellysuh22!`의 **계정명을 반드시 읽어야 합니다.** 이 값이 저장소 소유 계정과 다르면 인증은 되어도 push는 막힙니다. ([16-7절](#16-7-이슈-7--공개키를-등록하려던-브라우저가-다른-계정으로-로그인되어-있었음))
+
+### 19-6. 실험 B — 대조군: 키를 차단하면 거부된다
+
+```bash
+$ ssh -T -F /dev/null -o IdentitiesOnly=yes -o IdentityAgent=none \
+      -o IdentityFile=/dev/null -o BatchMode=yes git@github.com
+Load key "/dev/null": invalid format
+git@github.com: Permission denied (publickey).
+[exit code: 255]
+```
+
+| 옵션 | 역할 |
+|---|---|
+| `-F /dev/null` | `~/.ssh/config`를 아예 읽지 않음 — **이게 없으면 실험이 실패합니다** ([16-6절](#16-6-이슈-6--ssh-대조군-실험이-실패해야-하는데-성공해버림)) |
+| `IdentitiesOnly=yes` | 지정한 키만 사용 (다른 키를 자동 탐색하지 않음) |
+| `IdentityAgent=none` | ssh-agent 차단 (메모리에 올려둔 키 사용 금지) |
+| `IdentityFile=/dev/null` | 빈 파일을 키로 지정 = 사실상 키 없음 |
+| `BatchMode=yes` | 암호를 묻지 않고 즉시 실패 |
+
+거부의 원인이 "키가 없어서"임을 `-v`로 확인했습니다.
+
+```bash
+$ ssh -T ... -v git@github.com 2>&1 | grep -E "identity file|Authentications|Permission denied"
+debug1: identity file /dev/null type -1                    # 쓸 수 있는 키가 없음
+debug1: Authentications that can continue: publickey       # 서버는 공개키만 받겠다고 함
+git@github.com: Permission denied (publickey).
+```
+
+> **결과**: 실험 A와 B의 차이는 **키의 유무 하나뿐**입니다. 따라서 통과시킨 것이 키라는 점이 증명됩니다. 읽기 전용 시도이므로 저장소에는 아무 영향이 없습니다.
+
+### 19-7. 실험 C — HTTPS에서 SSH로 전환
+
+```bash
+### === 전환 전 ===
+$ git remote -v
+origin	https://github.com/ellysuh22/1-homework.git (fetch)
+origin	https://github.com/ellysuh22/1-homework.git (push)
+
+### *** 원격 주소 교체 ***
+$ git remote set-url origin git@github.com:ellysuh22/1-homework.git
+
+### === 전환 후 ===
+$ git remote -v
+origin	git@github.com:ellysuh22/1-homework.git (fetch)
+origin	git@github.com:ellysuh22/1-homework.git (push)
+
+### 전환된 경로로 실제 통신 확인
+$ git ls-remote --heads origin
+d6d018edb997a7d2a212031736d0fc0862e55e54	refs/heads/main
+```
+
+주소 형식이 다른 이유는 **프로토콜이 다르기 때문**입니다.
+
+| | 형식 | 의미 |
+|---|---|---|
+| HTTPS | `https://github.com/<계정>/<저장소>.git` | 웹과 같은 경로. 매 요청에 **토큰을 실어 보냄** |
+| SSH | `git@github.com:<계정>/<저장소>.git` | `<사용자>@<호스트>:<경로>` — SSH 접속 문법. **키로 서명** |
+
+> 토큰을 한 번도 사용하지 않고 원격 브랜치 조회가 성공했습니다. 인증 수단이 완전히 교체된 것입니다.
+
+### 19-8. 실험 D — SSH 경로로 실제 push
+
+`ssh -T`는 "인사"까지만 확인합니다. 미션이 요구한 것은 *"푸시가 가능하도록"*이므로 **실제 push**까지 검증했습니다.
+
+<!-- PUSH-LOG -->
+
+### 19-9. 인증 방식 차이 — 토큰과 키
+
+미션의 배움 포인트를 정리합니다.
+
+| | HTTPS (토큰) | SSH (키) |
+|---|---|---|
+| **비유** | 도장을 **우편으로 부치는 것** | 상대가 보낸 종이에 **도장을 찍어 종이만 돌려주는 것** |
+| **방식** | 비밀 값(토큰) 자체를 서버로 전송 | 서버가 던진 난수에 **개인키로 서명**해 회신, 서버는 공개키로 검증 |
+| **비밀의 위치** | 네트워크를 건너감 | **개인키는 내 컴퓨터를 떠나지 않음** |
+| **유출 시** | 그대로 도용 가능 | 서명본만으로는 재사용 불가 |
+| **폐기 방법** | 토큰 revoke 후 재발급 | GitHub에서 **공개키 한 줄 삭제** |
+| **기기 분리** | 토큰 하나를 공유하기 쉬움 | 기기별 키 등록이 자연스러움 (`Macbook-1-homework`) |
+
+**그렇다고 HTTPS가 열등한 것은 아닙니다.** 22번 포트가 막힌 사내망이나 CI 서버에서는 HTTPS + 토큰이 더 적합합니다. 상황에 따라 고르는 문제이지 우열의 문제가 아닙니다.
+
+**보안 습관 측면에서 이번에 적용한 것**
+
+1. **개인키는 저장소 밖에만** — 커밋 대상이 아니며 검사로 확인 ([18-1절](#18-1-마스킹-정책))
+2. **파일 권한 600** — SSH가 강제하는 규칙이며, [7장](#7-파일-권한-실습) 권한 실습이 실제로 쓰이는 지점
+3. **기기별 키 분리** — 키 이름을 `Macbook-1-homework`로 지어, 기기를 분실하면 그 키만 삭제하면 됨
+4. **서버 신원 확인** — `known_hosts` 지문을 공식 게시값과 대조
+5. **한계 인지** — passphrase는 설정하지 않았으며, 그 위험과 대안을 [18-1절](#18-1-마스킹-정책)에 명시
+
+### 19-10. 보안 점검 결과
+
+```bash
+$ find . -path ./.git -prune -o -name "id_*" -print    # 저장소 내 개인키
+(없음)
+
+$ grep -c "PRIVATE KEY" logs/10-ssh-key.log            # 로그 내 개인키 본문
+0
+
+$ ls -l ~/.ssh/id_ed25519
+-rw-------@ 1 ellysuh  staff  411 Aug  3 06:38 /Users/ellysuh/.ssh/id_ed25519
+```
 
 ---
 
@@ -1334,5 +1637,6 @@ bash scripts/08-volume.sh
 | [logs/07-bind-mount.log](logs/07-bind-mount.log) | 12장 | 바인드 마운트 반영 검증 |
 | [logs/08-volume.log](logs/08-volume.log) | 13장 | 볼륨 영속성 검증 |
 | [logs/09-git-github.log](logs/09-git-github.log) | 14장 | Git 설정 및 GitHub 연동 |
+| [logs/10-ssh-key.log](logs/10-ssh-key.log) | 19장 | *(보너스)* SSH 키 설정 및 인증 검증 |
 
 > 각 로그 파일은 **해당 단계를 수행한 시점의 스냅샷**입니다. 이후 단계에서 이미지·컨테이너가 추가되므로, 뒤쪽 로그의 `docker images` / `docker ps` 결과는 앞쪽 로그와 다를 수 있습니다.

@@ -1,0 +1,359 @@
+===============================================================
+ 10-ssh-key.log
+ 수집 시각: 2026-08-03 06:38:23 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### ====================================================================
+
+###  단계 0 — [Before] 전환 전 상태 고정
+
+### ====================================================================
+
+### 대조군은 실험 '전' 에 확보해야 한다. 바꾸고 나면 되살릴 수 없다.
+
+### 미션이 'HTTPS 대신 SSH' 라고 했으므로, 원래 HTTPS 였다는 기록이 있어야
+
+### '대신했다' 를 증명할 수 있다.
+
+### [0-1] 현재 원격 저장소 주소 — https:// 로 시작하는지 확인
+
+$ git remote -v
+origin	https://github.com/ellysuh22/1-homework.git (fetch)
+origin	https://github.com/ellysuh22/1-homework.git (push)
+
+### [0-2] 현재 인증 방식 — HTTPS 는 credential helper(토큰) 를 거친다
+
+###       helper 에는 '프로그램 경로' 만 남고 토큰 값은 macOS 키체인에 따로 있다
+
+$ git config --list | grep -i credential
+credential.helper=osxkeychain
+credential.helper=osxkeychain
+credential.https://github.com.helper=
+credential.https://github.com.helper=!/opt/homebrew/bin/gh auth git-credential
+credential.https://gist.github.com.helper=
+credential.https://gist.github.com.helper=!/opt/homebrew/bin/gh auth git-credential
+
+### [0-3] SSH 키 보유 현황 — 아직 개인키/공개키가 없는 상태
+
+$ ls -la /Users/ellysuh/.ssh
+total 8
+drwxr-xr-x@  3 ellysuh  staff    96 Jul 30 20:23 .
+drwxr-x---+ 47 ellysuh  staff  1504 Aug  3 06:38 ..
+-rw-r--r--@  1 ellysuh  staff   210 Jul 30 20:23 config
+
+### 
+
+### ====================================================================
+
+###  단계 1 — 키 생성 (ed25519)
+
+### ====================================================================
+
+### ed25519 를 선택한 이유: RSA 보다 키가 짧고 빠르면서 안전하다. GitHub 권장 방식.
+
+### 생성 결과는 두 개다.
+
+###   · id_ed25519      개인키 = 열쇠. 내 컴퓨터 밖으로 절대 안 나간다.
+
+###   · id_ed25519.pub  공개키 = 자물쇠. GitHub 에 붙여둔다. 공개돼도 안전하다.
+
+### [1-1] 키 생성 (비대화형)
+
+$ ssh-keygen -t ed25519 -C 'cindyseo79@gmail.com' -f '/Users/ellysuh/.ssh/id_ed25519' -N '' -q && echo '키 생성 완료'
+키 생성 완료
+
+### [1-2] 생성 결과 확인
+
+###       개인키 권한이 600(-rw-------) 인지 주목한다. Phase 2 에서 다룬 그 표기다.
+
+###       SSH 는 개인키가 남에게 읽히는 권한이면 아예 사용을 거부한다.
+
+$ ls -la /Users/ellysuh/.ssh
+total 24
+drwxr-xr-x@  5 ellysuh  staff   160 Aug  3 06:38 .
+drwxr-x---+ 47 ellysuh  staff  1504 Aug  3 06:38 ..
+-rw-r--r--@  1 ellysuh  staff   210 Jul 30 20:23 config
+-rw-------@  1 ellysuh  staff   411 Aug  3 06:38 id_ed25519
+-rw-r--r--@  1 ellysuh  staff   102 Aug  3 06:38 id_ed25519.pub
+
+### [1-3] 키 지문(fingerprint) — 공개키를 요약한 값. 공개 정보라 로그에 남겨도 안전하다.
+
+###       GitHub 등록 화면에 뜨는 지문과 대조하면 '내 키가 맞다' 는 교차 검증이 된다.
+
+$ ssh-keygen -lf /Users/ellysuh/.ssh/id_ed25519.pub
+256 SHA256:Xq44CGli4Z7ANf6f8CDasp+lWYqSrxthF+CQyIirUPc cindyseo79@gmail.com (ED25519)
+
+### 
+
+### ====================================================================
+
+###  단계 2 — ssh-agent / 키체인 연동 + 서버 신원 등록
+
+### ====================================================================
+
+### passphrase 가 귀찮아서 passphrase 자체를 포기하는 것이 제일 나쁜 선택이다.
+
+### 그래서 macOS 키체인에 맡겨 '보안은 지키고 불편만 없애는' 쪽으로 설정한다.
+
+### [2-1] ~/.ssh/config 에 github.com 전용 설정 추가
+
+###       주의: 파일 맨 위의 OrbStack 'Include' 줄은 맨 위에 있어야 동작하므로
+
+###             새 블록은 반드시 파일 '맨 아래' 에 덧붙인다.
+
+###       추가 완료
+
+$ tail -n 5 ~/.ssh/config
+
+Host github.com
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/id_ed25519
+
+### [2-2] 키를 ssh-agent 에 등록 (passphrase 를 macOS 키체인에 위임)
+
+$ ssh-add --apple-use-keychain '/Users/ellysuh/.ssh/id_ed25519' 2>&1
+Identity added: /Users/ellysuh/.ssh/id_ed25519 (cindyseo79@gmail.com)
+
+### [2-3] agent 가 키를 들고 있는지 확인
+
+$ ssh-add -l
+256 SHA256:Xq44CGli4Z7ANf6f8CDasp+lWYqSrxthF+CQyIirUPc cindyseo79@gmail.com (ED25519)
+
+### [2-4] 서버 신원 등록 — known_hosts
+
+###       SSH 는 '양방향' 확인이다.
+
+###         · 서버가 나를 확인   → 내 공개키로 서명을 검증
+
+###         · 내가 서버를 확인   → 서버 호스트키를 known_hosts 와 대조
+
+###       처음 접속할 때 뜨는 'Are you sure you want to continue connecting?' 이 그것이다.
+
+###       여기서는 그 절차를 ssh-keyscan 으로 명시적으로 수행해 기록에 남긴다.
+
+###       등록 완료
+
+###       아래 지문을 GitHub 공식 문서의 게시값과 육안 대조한다.
+
+###       (docs.github.com → "GitHub's SSH key fingerprints")
+
+$ ssh-keygen -lF github.com
+# Host github.com found: line 2 
+github.com ED25519 SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU
+
+### 
+
+### ====================================================================
+
+###  단계 3 — GitHub 에 등록할 공개키
+
+### ====================================================================
+
+### 저장소와 GitHub 으로 나가는 것은 '자물쇠(공개키)' 뿐이다.
+
+### '열쇠(개인키)' 는 ~/.ssh/ 밖으로 절대 나가지 않는다.
+
+### [3-1] 등록할 공개키 — 공개해도 안전한 값이므로 로그에 그대로 남긴다
+
+$ cat /Users/ellysuh/.ssh/id_ed25519.pub
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ4lpFpD0F5AqjO/Qulh6SUWcDqCCZy45LYHOhUOwVgz cindyseo79@gmail.com
+===============================================================
+ 10-ssh-key.log
+ 수집 시각: 2026-08-03 07:09:05 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### 
+
+### [3-2] GitHub 웹에서 공개키 등록 완료 (증거: evidence/github-ssh-key.png)
+
+### 
+
+### ====================================================================
+
+###  실험 A — 키가 있으면 인증에 성공한다
+
+### ====================================================================
+
+### [A-1] SSH 인증 시도
+
+###       종료 코드 1 이 정상이다. GitHub 은 로그인 셸을 주지 않고 git 통신만 허용하므로
+
+###       'shell access 를 제공하지 않는다' 는 안내와 함께 1 로 끝난다.
+
+$ ssh -T git@github.com
+Hi ellysuh22! You've successfully authenticated, but GitHub does not provide shell access.
+[exit code: 1]
+
+### >>> 결과: 'Hi <계정명>! You've successfully authenticated' — 신원 확인 성공.
+
+### 
+
+### ====================================================================
+
+###  실험 B — 대조군: 키를 못 쓰게 하면 거부된다
+
+### ====================================================================
+
+### Phase 2 에서 chmod 000 을 걸고 cat 을 해 Permission denied 를 받아낸 것과 같다.
+
+### 성공만 보여주면 '원래 열려 있던 문' 인지 '키 때문에 열린 문' 인지 구분할 수 없다.
+
+### 
+
+### 옵션 설명:
+
+###   -F /dev/null            ~/.ssh/config 를 아예 읽지 않는다  ★ 이게 없으면 실험이 실패한다
+
+###   IdentitiesOnly=yes      지정한 키만 쓴다 (다른 키를 자동으로 찾지 않음)
+
+###   IdentityAgent=none      ssh-agent 를 쓰지 않는다 (메모리에 올려둔 키 차단)
+
+###   IdentityFile=/dev/null  빈 파일을 키로 지정 = 사실상 키 없음
+
+###   BatchMode=yes           암호를 묻지 않고 즉시 실패 (스크립트가 멈추지 않도록)
+
+### 
+
+### ※ -F /dev/null 을 빠뜨리면 단계 2-1 에서 넣은 config 의 IdentityFile 이 살아남아
+
+###   '키 없음' 을 만들었는데도 인증이 통과해버린다. 실제로 겪었고 README 16-6 에 정리했다.
+
+### ※ 읽기 전용 시도이므로 저장소에는 아무 영향이 없다.
+
+### [B-1] 키 없이 인증 시도 — 'Permission denied (publickey)' 로 실패해야 정상이다
+
+$ ssh -T -F /dev/null -o IdentitiesOnly=yes -o IdentityAgent=none -o IdentityFile=/dev/null -o BatchMode=yes git@github.com
+Load key "/dev/null": invalid format
+git@github.com: Permission denied (publickey).
+[exit code: 255]
+
+### [B-2] 대조 근거 — 위 실패가 '키가 없어서' 임을 -v 로 확인한다
+
+###       정상 경로에서는 'Offering public key: ...id_ed25519' 가 찍히지만
+
+###       여기서는 제시할 키가 없어 곧바로 거부된다.
+
+$ ssh -T -F /dev/null -o IdentitiesOnly=yes -o IdentityAgent=none -o IdentityFile=/dev/null -o BatchMode=yes -v git@github.com 2>&1 | grep -E "identity file|Offering|Authentications that can continue|Permission denied" | head -5
+debug1: identity file /dev/null type -1
+debug1: Authentications that can continue: publickey
+git@github.com: Permission denied (publickey).
+
+### >>> 결과: 키를 차단하니 거부됐다. 실험 A 와 비교하면 통과시킨 것이 '키' 임이 증명된다.
+
+### 
+
+### ====================================================================
+
+###  실험 C — HTTPS 에서 SSH 로 전환하고 통신을 확인한다
+
+### ====================================================================
+
+### [C-1] === 전환 전 === (단계 0 과 같은 값이어야 한다)
+
+$ git remote -v
+origin	https://github.com/ellysuh22/1-homework.git (fetch)
+origin	https://github.com/ellysuh22/1-homework.git (push)
+
+### [C-2] *** 원격 주소를 SSH 형식으로 교체 ***
+
+###       https://github.com/<계정>/<저장소>.git  →  git@github.com:<계정>/<저장소>.git
+
+$ git remote set-url origin git@github.com:ellysuh22/1-homework.git
+
+
+### [C-3] === 전환 후 === git@ 형식으로 바뀌었는지 확인
+
+$ git remote -v
+origin	git@github.com:ellysuh22/1-homework.git (fetch)
+origin	git@github.com:ellysuh22/1-homework.git (push)
+
+### [C-4] 전환된 경로로 실제 통신이 되는지 확인 (원격 브랜치 조회)
+
+###       토큰을 한 번도 쓰지 않고 키만으로 원격에 닿는다.
+
+$ git ls-remote --heads origin
+d6d018edb997a7d2a212031736d0fc0862e55e54	refs/heads/main
+
+### >>> 결과: 인증 수단이 '토큰 전송' 에서 '키 서명' 으로 완전히 교체됐다.
+
+### 
+
+### ====================================================================
+
+###  단계 4 — 보안 점검 (개인키가 저장소에 섞이지 않았는지)
+
+### ====================================================================
+
+### 미션 4장: '토큰, 비밀번호, 개인키가 포함되지 않도록 마스킹한다'
+
+### [4-1] 저장소 안에 개인키 파일이 있는지 검사 — 아무것도 안 나와야 정상
+
+$ find . -path ./.git -prune -o -name "id_*" -print 2>/dev/null; echo "(검사 완료 — 위에 아무것도 없으면 통과)"
+(검사 완료 — 위에 아무것도 없으면 통과)
+
+### [4-2] 이번 로그에 개인키 본문이 섞였는지 검사 — 0 이어야 정상
+
+$ grep -c "PRIVATE KEY" logs/10-ssh-key.log || true
+0
+
+### [4-3] 개인키는 저장소 밖(~/.ssh/)에만 존재하며 권한이 600 인지 재확인
+
+$ ls -l /Users/ellysuh/.ssh/id_ed25519
+-rw-------@ 1 ellysuh  staff  411 Aug  3 06:38 /Users/ellysuh/.ssh/id_ed25519
+
+### 
+
+### [완료] SSH 키 설정 및 동작 검증 완료
+
+###        남은 단계: 문서 반영 후 scripts/10b-ssh-push.sh 로 실제 push 증거 수집
+===============================================================
+ 10-ssh-key.log
+ 수집 시각: 2026-08-03 08:11:33 KST
+ 수집 방법: scripts/runlog.sh (명령어+출력 동시 기록)
+===============================================================
+
+### 
+
+### ====================================================================
+
+###  실험 D — SSH 경로로 실제 push
+
+### ====================================================================
+
+### [D-1] 원격 주소가 SSH(git@) 인지 다시 확인
+
+$ git remote -v
+origin	git@github.com:ellysuh22/1-homework.git (fetch)
+origin	git@github.com:ellysuh22/1-homework.git (push)
+
+### [D-2] 올릴 변경사항 확인
+
+$ git status --short
+ M Dockerfile
+ M README.md
+ M REPORT.md
+ M app/index.html
+ M bindmount-demo/index.html
+?? ANSWERS.md
+?? CARD.md
+?? EXPLAIN.md
+?? KakaoTalk_Photo_2026-07-31-22-12-45.jpeg
+?? KakaoTalk_Photo_2026-08-02-13-56-18.jpeg
+?? KakaoTalk_Photo_2026-08-02-13-56-52.jpeg
+?? PASS.md
+?? QNA.md
+?? evidence/github-ssh-key.png
+?? logs/10-ssh-key.log
+?? logs/demo.log
+?? scripts/10-ssh-key.sh
+?? scripts/10b-ssh-push.sh
+?? scripts/10c-passphrase.sh
+
+### [D-3] 커밋 — 이번 작업에 해당하는 파일만 명시적으로 스테이징한다
+
+###       git add -A 를 쓰지 않는 이유: 저장소에 과제와 무관한 개인 이미지 등이
+
+###       남아 있을 수 있어, 공개 저장소에 의도치 않게 올라가는 것을 막기 위함이다.
