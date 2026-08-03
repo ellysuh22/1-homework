@@ -764,13 +764,49 @@ nginx 설정 파일에 포트 번호를 **그냥 써두면**, 포트를 바꿀 �
 
 ---
 
-**④ 증빙**
+**④ 증빙 — 어떻게 만들었나 (3단계)**
 
-**▶ [README 10-5절 · 설정이 채워진 결과](https://github.com/ellysuh22/1-homework/blob/main/README.md?plain=1#L617-L620)**
+**1단계. 설정 파일을 빈칸으로 써둡니다** → [`templates/default.conf.template`](https://github.com/ellysuh22/1-homework/blob/main/templates/default.conf.template)
+```nginx
+listen       ${APP_PORT};                    ← 숫자 대신 빈칸
+add_header   X-App-Env "${APP_ENV}" always;  ← 여기도 빈칸
 ```
-    listen       80;      # ← ${APP_PORT} 가 치환됨
+🗣️ **"nginx 설정에 포트를 숫자로 안 쓰고 빈칸으로 뒀습니다."**
+
+**2단계. 빈칸의 기본값을 Dockerfile에 정해둡니다** → [`Dockerfile`](https://github.com/ellysuh22/1-homework/blob/main/Dockerfile)
+```dockerfile
+ARG APP_PORT=80        ← 안 넣어주면 80을 쓴다
+ENV APP_PORT=${APP_PORT}
+COPY templates/ /etc/nginx/templates/   ← 빈칸 파일을 이 폴더에 넣는다
 ```
-🗣️ **"빈칸으로 넣어두고 실행할 때 채워지게 한 겁니다."**
+🗣️ **"기본값은 80으로 하고, 빈칸 파일을 nginx가 정해둔 폴더에 넣었습니다."**
+
+**3단계. 컨테이너가 켜질 때 nginx가 빈칸을 채웁니다** (자동)
+```
+컨테이너 시작
+   ↓
+nginx가 /etc/nginx/templates/ 를 읽음
+   ↓
+${APP_PORT} → 실제 값으로 바꿔서 진짜 설정 파일로 저장
+```
+
+---
+
+**그래서 이렇게 됩니다**
+
+| 실행 명령 | 컨테이너 안 설정 |
+|---|---|
+| `docker run my-web:1.0` | `listen 80;` |
+| `docker run -e APP_PORT=3000 my-web:1.0` | `listen 3000;` |
+
+**둘 다 이미지는 `my-web:1.0` 그대로입니다. `docker build` 를 다시 하지 않았습니다.**
+
+**▶ [README 10-5절 · 빈칸이 채워진 걸 확인](https://github.com/ellysuh22/1-homework/blob/main/README.md?plain=1#L617-L620)** ⭐
+```
+    listen       80;                      # ← ${APP_PORT} 가 채워짐
+    add_header X-App-Env  "dev"  always;  # ← ${APP_ENV} 가 채워짐
+```
+🗣️ **"말로만 '빈칸을 채운다'고 하면 안 되니까, 컨테이너 안에 들어가서 진짜 설정 파일을 꺼내봤습니다. 빈칸이 실제 값으로 바뀌어 있습니다."**
 
 **▶ [README 17-1절 · 평가자용 재현 절차](https://github.com/ellysuh22/1-homework/blob/main/README.md?plain=1#L1265-L1319)** ⭐
 ```bash
