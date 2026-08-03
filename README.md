@@ -117,7 +117,8 @@ orbstack *   OrbStack                                  unix:///Users/ellysuh/.or
 │   ├── runlog.sh                    #   명령어+출력을 함께 기록하는 헬퍼
 │   ├── 01-terminal.sh ~ 08-volume.sh
 │   ├── 10-ssh-key.sh                #   (보너스) SSH 키 설정/검증 — setup·verify 2단계
-│   └── 10b-ssh-push.sh              #   (보너스) SSH 경로로 실제 push 증거 수집
+│   ├── 10b-ssh-push.sh              #   (보너스) SSH 경로로 실제 push 증거 수집
+│   └── 10c-passphrase.sh            #   (보너스) 개인키 passphrase 설정 — 준비만, 미실행 (18-1절)
 ├── logs/                            # 터미널 조작 로그 (명령어 + 출력)
 │   └── 01-terminal.log ~ 10-ssh-key.log
 ├── evidence/                        # 브라우저·GUI 스크린샷
@@ -1206,7 +1207,7 @@ APP_PORT=80                                          # ← 컨테이너 안에�
 
 ### 16-6. 이슈 6 — SSH 대조군 실험이 "실패해야 하는데" 성공해버림
 
-- **문제**: [19-5절](#19-5-실험-b--대조군-키를-차단하면-거부된다)의 대조군 실험에서 키를 못 쓰게 막고 접속했는데도 인증이 **통과**했습니다. 거부되어야 정상인데 성공한 것입니다.
+- **문제**: [19-6절](#19-6-실험-b--대조군-키를-차단하면-거부된다)의 대조군 실험에서 키를 못 쓰게 막고 접속했는데도 인증이 **통과**했습니다. 거부되어야 정상인데 성공한 것입니다.
 
   ```bash
   $ ssh -T -o IdentitiesOnly=yes -o IdentityAgent=none -o IdentityFile=/dev/null -o BatchMode=yes git@github.com
@@ -1371,7 +1372,7 @@ bash scripts/08-volume.sh
   -rw-------@ 1 ellysuh  staff  411  ...                # 소유자만 읽기/쓰기 (600)
   ```
 
-  > **한계 명시** — 이 키에는 **passphrase를 설정하지 않았습니다.** 따라서 키 파일 자체가 유출되면 그대로 사용될 수 있습니다. 이를 감수한 대신 ① 파일 권한 `600`, ② 저장소와 물리적 분리, ③ 기기별 키 분리(`Macbook-1-homework`)로 관리했고, 유출 시에는 GitHub에서 **해당 공개키 한 줄만 삭제하면 즉시 무효화**됩니다. 운영 환경이라면 `ssh-keygen -p`로 passphrase를 거는 것이 원칙입니다.
+  > **한계 명시** — 이 키에는 **passphrase를 설정하지 않았습니다.** 따라서 키 파일 자체가 유출되면 그대로 사용될 수 있습니다. 이를 감수한 대신 ① 파일 권한 `600`, ② 저장소와 물리적 분리, ③ 기기별 키 분리(`Macbook-1-homework`)로 관리했고, 유출 시에는 GitHub에서 **해당 공개키 한 줄만 삭제하면 즉시 무효화**됩니다. 운영 환경이라면 `ssh-keygen -p`로 passphrase를 거는 것이 원칙입니다. 설정 전/후를 `ssh-keygen -y -P ''`로 검증하는 절차는 [scripts/10c-passphrase.sh](scripts/10c-passphrase.sh)에 준비해 두었으나 **이번 제출에서는 실행하지 않았습니다.**
 - **스크린샷**: 캡처된 이미지를 모두 직접 열어 토큰·비밀번호·개인정보가 찍히지 않았음을 육안으로 확인했습니다.
 - **공개된 정보**: 커밋 작성자 이메일(`youngsuh0630@gmail.com`)과 홈 디렉토리 경로(`/Users/ellysuh/...`)는 공개 저장소 특성상 노출됩니다. 이는 의도된 것이며 민감정보가 아닙니다.
 
