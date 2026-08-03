@@ -453,42 +453,47 @@ docker run -p 8080:80
 
 **③ 증빙**
 
-**▶ [README 11-1절 · 이미지 1개, 컨테이너 2개](https://github.com/ellysuh22/1-homework/blob/main/README.md?plain=1#L642-L655)**
+**화면 하나면 끝납니다.**
+
+**▶ [README 11-3절 · 브라우저 접속 화면](https://github.com/ellysuh22/1-homework/blob/main/README.md?plain=1#L683-L696)** ⭐⭐
+🗣️ **"주소창에 `localhost:8080`, 아래에 페이지가 떠 있습니다. 접속됩니다."**
+
+---
+
+**더 보여드리면 (물어보면 열기)**
+
+**▶ [11-1절 · 두 개 띄운 명령](https://github.com/ellysuh22/1-homework/blob/main/README.md?plain=1#L642-L655)**
 ```
 $ docker run -d -p 8080:80 --name web-8080 my-web:1.0
 $ docker run -d -p 8081:80 --name web-8081 my-web:1.0
-
-web-8081   0.0.0.0:8081->80/tcp   Up 5 seconds (healthy)
-web-8080   0.0.0.0:8080->80/tcp   Up About a minute (healthy)
 ```
-🗣️ **"이미지는 `my-web:1.0` 하나인데 컨테이너가 둘입니다. 왼쪽 포트만 다르고 오른쪽 80은 둘 다 같습니다."**
+🗣️ **"왼쪽 포트만 다르고 오른쪽 80은 둘 다 같습니다."**
 
-**▶ [README 11-2절 · curl 응답](https://github.com/ellysuh22/1-homework/blob/main/README.md?plain=1#L656-L682)**
+**▶ [11-2절 · curl 응답](https://github.com/ellysuh22/1-homework/blob/main/README.md?plain=1#L656-L682)**
 ```
 $ curl -i http://localhost:8080
 HTTP/1.1 200 OK
 ```
-🗣️ **"`200 OK` 는 정상 응답이라는 뜻입니다. 8081도 같습니다."**
+🗣️ **"`200 OK` — 정상 응답입니다. 8081도 같습니다."**
 
-**▶ [README 11-3절 · 브라우저 접속 화면](https://github.com/ellysuh22/1-homework/blob/main/README.md?plain=1#L683-L696)** ⭐
-🗣️ **"스크린샷이 바로 뜹니다. 주소창에 `localhost:8080` 이 보이고, 8081과 환경변수 확인 화면도 있습니다."**
+---
 
-**▶ [README 11-4절 · 포트 충돌 실험](https://github.com/ellysuh22/1-homework/blob/main/README.md?plain=1#L697-L708)**
-```
-Bind for 0.0.0.0:8080 failed: port is already allocated
-```
-🗣️ **"일부러 8080을 겹쳐 써본 겁니다. 호스트 포트는 하나만 쓸 수 있습니다."**
+**🤔 왜 이렇게 했나 (세 가지만)**
+
+| 왜 | 이유 |
+|---|---|
+| **왜 브라우저 캡처까지?** | 미션이 **"주소창과 응답 화면이 함께 보이도록"** 요구해서. `curl`은 주소창이 없습니다 |
+| **왜 `curl`도 했나?** | `curl`은 결과가 **글자라 로그로 남습니다.** 캡처는 눈으로, 로그는 기록으로 — 둘이 서로를 받쳐줍니다 |
+| **왜 두 개를 띄웠나?** | **이미지 하나로 여러 개** 띄울 수 있다는 걸 같이 보이려고. 포트만 바꾸면 됩니다 |
 
 **💡 물어보면**
 
 | 물음 | 답 |
 |---|---|
-| `-p 8080:80` 은? | **내 컴퓨터 8080 → 컨테이너 80** 으로 연결 |
-| `-d` 는? | **d**etached — 백그라운드로. 터미널을 안 붙잡음 |
-| `Up 5 seconds` 는? | **살아있고 켠 지 5초** 됐다는 뜻 |
-| `curl` 은? | **터미널로 웹사이트 접속**하는 도구. 결과가 글자라 로그로 남음 |
-| `-i` 는? | 응답 헤더까지 보여줘 → `200 OK` 확인용 |
-| 왜 두 개를 띄웠나요? | **이미지 하나로 여러 개 만들 수 있다**는 걸 보이려고 |
+| `-p 8080:80` 은? | **내 컴퓨터 8080 → 컨테이너 80** 연결 |
+| `-d` 는? | **d**etached — 백그라운드. 터미널을 안 붙잡음 |
+| `-i` 는? | 응답 헤더까지 표시 → `200 OK` 확인용 |
+| 8080을 또 쓰면? | **충돌합니다.** 일부러 해봤고 `port is already allocated` 가 났습니다 → [11-4절](https://github.com/ellysuh22/1-homework/blob/main/README.md?plain=1#L697-L708) |
 
 📄 [`evidence/browser-8080.png`](https://github.com/ellysuh22/1-homework/blob/main/evidence/browser-8080.png) · [`logs/06-port-mapping.log`](https://github.com/ellysuh22/1-homework/blob/main/logs/06-port-mapping.log)
 
